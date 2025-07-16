@@ -40,6 +40,26 @@ async def get_project_by_id(project_id: str, db=Depends(get_db)):
             detail=f"An error occurred while retrieving the project: {str(e)}"
         )
     
+async def get_user_projects(user_id: str, db=Depends(get_db)):
+    user_id = ObjectId(user_id)
+    if not user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid user ID."
+        )
+    try:
+        projects = await db.projects.find({"user_id": user_id}).to_list(length=None)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while retrieving the user's projects: {str(e)}"
+        )
+    if not projects:
+        raise HTTPException(
+            status_code=404,
+            detail="No projects found for this user."
+        )
+    return [ProjectResponse(**project) for project in projects]
     
 async def update_project(project_id: str, project: ProjectUpdate, db=Depends(get_db)):
     project_id = ObjectId(project_id)

@@ -9,6 +9,7 @@ from utils.custom_type import PyObjectId
 class ProjectBase(BaseModel):
     name: str 
     description: str
+    user_id: str 
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
