@@ -40,6 +40,7 @@ async def get_project_by_id(project_id: str, db=Depends(get_db)):
             detail=f"An error occurred while retrieving the project: {str(e)}"
         )
     
+    
 async def update_project(project_id: str, project: ProjectUpdate, db=Depends(get_db)):
     project_id = ObjectId(project_id)
     existing_project = await db.projects.find_one({"_id": project_id})
