@@ -4,6 +4,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from model.UserModel import UserInDB
 from model.TokenModel import Token, TokenData
+from server.utils.auth import verify_password
 from utils.db import get_db
 
 # Secret key and algorithm for JWT
