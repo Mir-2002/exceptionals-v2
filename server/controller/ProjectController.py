@@ -117,3 +117,77 @@ async def delete_project(project_id: str, db=Depends(get_db)):
             status_code=500,
             detail=f"An error occurred while deleting the project: {str(e)}"
         )
+    
+async def apply_preferences_and_update_project(project_id: str, db=Depends(get_db)):
+    # 1. Fetch preferences
+    prefs = await db.preferences.find_one({"project_id": project_id})
+    if not prefs:
+        raise HTTPException(status_code=404, detail="Preferences not found for this project.")
+
+    # 2. Fetch all files for the project
+    files = await db.files.find({"project_id": project_id}).to_list(length=None)
+
+    # 3. Prepare exclusion lists
+    dir_ex = prefs.get("directory_exclusion", {})
+    per_file_ex = prefs.get("per_file_exclusion", [])
+
+    exclude_files = set(dir_ex.get("exclude_files", []))
+    exclude_dirs = set(dir_ex.get("exclude_dirs", []))
+
+    # For reporting missing exclusions
+    missing_exclusions = []
+
+    for file in files:
+        filename = file["filename"]
+
+        # Directory/file exclusion
+        if filename in exclude_files or any(filename.startswith(d + "/") for d in exclude_dirs):
+            # Instead of deleting, just set processed_functions/classes to empty
+            await db.files.update_one(
+                {"_id": file["_id"]},
+                {"$set": {
+                    "processed_functions": [],
+                    "processed_classes": []
+                }}
+            )
+            continue
+
+        # Per-file exclusion
+        file_ex = next((ex for ex in per_file_ex if ex["filename"] == filename), None)
+        filtered_functions = file.get("functions", [])
+        filtered_classes = file.get("classes", [])
+
+        if file_ex:
+            # Remove excluded functions
+            if "exclude_functions" in file_ex and file_ex["exclude_functions"]:
+                filtered_functions = [
+                    f for f in filtered_functions
+                    if f["name"] not in file_ex["exclude_functions"]
+                ]
+            # Remove excluded classes
+            if "exclude_classes" in file_ex and file_ex["exclude_classes"]:
+                filtered_classes = [
+                    c for c in filtered_classes
+                    if c["name"] not in file_ex["exclude_classes"]
+                ]
+            # Remove excluded methods from classes
+            if "exclude_methods" in file_ex and file_ex["exclude_methods"]:
+                for c in filtered_classes:
+                    c["methods"] = [
+                        m for m in c.get("methods", [])
+                        if m["name"] not in file_ex["exclude_methods"]
+                    ]
+
+        # Update the file in the DB with processed content
+        await db.files.update_one(
+            {"_id": file["_id"]},
+            {"$set": {
+                "processed_functions": filtered_functions,
+                "processed_classes": filtered_classes
+            }}
+        )
+
+    return {
+        "detail": "Project files updated according to preferences.",
+        "missing_exclusions": missing_exclusions
+    }

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from view.UserView import router as user_router
 from view.ProjectView import router as project_router
 from view.FileView import router as file_router
+from view.PreferencesView import router as preferences_router
 
 app = FastAPI(
     title="Exceptionals",
@@ -26,3 +27,4 @@ async def root():
 app.include_router(user_router, prefix="/api", tags=["users"])
 app.include_router(project_router, prefix="/api", tags=["projects"])
 app.include_router(file_router, prefix="/api", tags=["files"])
+app.include_router(preferences_router, prefix="/api", tags=["preferences"])

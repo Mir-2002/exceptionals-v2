@@ -16,6 +16,8 @@ class FileBase(BaseModel):
     filename: str
     functions: List[FunctionInfo] = Field(default_factory=list)
     classes: List[ClassInfo] = Field(default_factory=list)
+    processed_functions: List[FunctionInfo] = Field(default_factory=list)
+    processed_classes: List[ClassInfo] = Field(default_factory=list)
 
 class FileCreate(FileBase):
     pass

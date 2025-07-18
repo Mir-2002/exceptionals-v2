@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from controller.ProjectController import create_project, delete_project, get_project_by_id,  update_project
+from controller.ProjectController import apply_preferences_and_update_project, create_project, delete_project, get_project_by_id,  update_project
 from model.ProjectModel import ProjectCreate, ProjectResponse, ProjectUpdate
 from utils.db import get_db
 
@@ -22,3 +22,7 @@ async def update(project_id: str, project: ProjectUpdate, db=Depends(get_db)):
 @router.delete("/projects/{project_id}", summary="Delete a project.")
 async def delete(project_id: str, db=Depends(get_db)):
     return await delete_project(project_id, db)
+
+@router.post("/projects/{project_id}/apply-preferences")
+async def apply_prefs(project_id: str, db=Depends(get_db)):
+    return await apply_preferences_and_update_project(project_id, db)
