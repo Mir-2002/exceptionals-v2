@@ -11,15 +11,6 @@ SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# TODO: Replace verify and hash password functions in UserController with these functions instead
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
 async def authenticate_user(username: str, password: str, db):
     user = await db.users.find_one({"username": username})
     if not user or not verify_password(password, user["hashed_password"]):
