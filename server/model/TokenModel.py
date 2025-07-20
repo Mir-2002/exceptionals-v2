@@ -7,4 +7,3 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
-    is_admin: bool = False  # True for admins, False for regular users

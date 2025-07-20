@@ -4,13 +4,16 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from model.UserModel import UserInDB
 from model.TokenModel import Token, TokenData
-from server.utils.auth import verify_password
 from utils.db import get_db
+from utils.auth import verify_password
+from fastapi.security import OAuth2PasswordBearer
 
 # Secret key and algorithm for JWT
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 async def authenticate_user(username: str, password: str, db):
     user = await db.users.find_one({"username": username})
@@ -35,7 +38,7 @@ async def login_user(username: str, password: str, db):
     access_token = create_access_token(token_data)
     return Token(access_token=access_token, token_type="bearer")
 
-async def get_current_user(token: str, db):
+async def get_current_user(db=Depends(get_db), token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials"

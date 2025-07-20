@@ -4,7 +4,7 @@ from utils.db import get_db
 from bson import ObjectId
 
 
-async def create_project(project: ProjectCreate, db=Depends(get_db)):
+async def create_project(project: ProjectCreate, db):
     existing_project = await db.projects.find_one({"name": project.name})
     if existing_project:
         raise HTTPException(
@@ -24,7 +24,7 @@ async def create_project(project: ProjectCreate, db=Depends(get_db)):
             detail=f"An error occurred while creating the project: {str(e)}"
         )
     
-async def get_project_by_id(project_id: str, db=Depends(get_db)):
+async def get_project_by_id(project_id: str, db):
     project_id = ObjectId(project_id)
     try: 
         project_data = await db.projects.find_one({"_id": project_id})
@@ -40,7 +40,7 @@ async def get_project_by_id(project_id: str, db=Depends(get_db)):
             detail=f"An error occurred while retrieving the project: {str(e)}"
         )
     
-async def get_user_projects(user_id: str, db=Depends(get_db)):
+async def get_user_projects(user_id: str, db):
     user_id = ObjectId(user_id)
     if not user_id:
         raise HTTPException(
@@ -61,7 +61,7 @@ async def get_user_projects(user_id: str, db=Depends(get_db)):
         )
     return [ProjectResponse(**project) for project in projects]
     
-async def update_project(project_id: str, project: ProjectUpdate, db=Depends(get_db)):
+async def update_project(project_id: str, project: ProjectUpdate, db):
     project_id = ObjectId(project_id)
     existing_project = await db.projects.find_one({"_id": project_id})
     if not existing_project:
@@ -95,7 +95,7 @@ async def update_project(project_id: str, project: ProjectUpdate, db=Depends(get
             detail=f"An error occurred while updating the project: {str(e)}"
         )
     
-async def delete_project(project_id: str, db=Depends(get_db)):
+async def delete_project(project_id: str, db):
     project_id = ObjectId(project_id)
     existing_project = await db.projects.find_one({"_id": project_id})
     if not existing_project:
@@ -118,7 +118,7 @@ async def delete_project(project_id: str, db=Depends(get_db)):
             detail=f"An error occurred while deleting the project: {str(e)}"
         )
     
-async def apply_preferences_and_update_project(project_id: str, db=Depends(get_db)):
+async def apply_preferences_and_update_project(project_id: str, db):
     # 1. Fetch preferences
     prefs = await db.preferences.find_one({"project_id": project_id})
     if not prefs:

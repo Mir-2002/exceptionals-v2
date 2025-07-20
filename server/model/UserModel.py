@@ -24,6 +24,7 @@ class UserUpdate(BaseModel):
 class UserInDB(UserBase):
     id: Optional[PyObjectId] =  Field(default_factory=PyObjectId, alias="_id")
     hashed_password: str
+    is_admin: bool = False
 
     model_config = {
         "populate_by_name": True,
