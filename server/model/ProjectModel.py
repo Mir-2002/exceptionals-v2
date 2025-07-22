@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field, model_validator
 from bson import ObjectId
 
@@ -44,3 +44,14 @@ class ProjectResponse(ProjectBase):
             data["id"] = str(data["_id"])
         data.pop("_id", None)
         return data
+    
+class FileProcessSummary(BaseModel):
+    filename: str
+    included_functions: List[str]
+    excluded_functions: List[str]
+    included_classes: List[str]
+    excluded_classes: List[str]
+    excluded_methods: Optional[Dict[str, List[str]]] = None  # {class_name: [method_names]}
+
+class ProcessFilesSummaryResponse(BaseModel):
+    processed_files: List[FileProcessSummary]

@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
-
-from controller.ProjectController import apply_preferences_and_update_project, create_project, delete_project, get_project_by_id,  update_project
+from fastapi import APIRouter, Depends, HTTPException, Body
+from controller.ProjectController import apply_preferences_and_update_project, create_project, delete_project, get_project_by_id , process_multiple_files, process_project_files, process_single_file,  update_project
 from model.ProjectModel import ProjectCreate, ProjectResponse, ProjectUpdate
 from utils.db import get_db
 from controller.AuthController import get_current_user
 from utils.project_verification import get_and_check_project_ownership
+from typing import List
 
 
 router = APIRouter()
@@ -32,6 +32,24 @@ async def apply_prefs(project_id: str, db=Depends(get_db), current_user=Depends(
     await get_and_check_project_ownership(project_id, db, current_user)
     return await apply_preferences_and_update_project(project_id, db)
 
-@router.get("/test-db")
-async def test_db(db=Depends(get_db)):
-    return {"message": "DB dependency works!"}
+@router.post("/projects/{project_id}/files/{file_id}/process", summary="Process a single file according to preferences.")
+async def process_single_file_view(project_id: str, file_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):
+    await get_and_check_project_ownership(project_id, db, current_user)
+    return await process_single_file(project_id, file_id, db)
+
+@router.post("/projects/{project_id}/files/process", summary="Process multiple files according to preferences.")
+async def process_multiple_files_view(
+    project_id: str,
+    file_ids: List[str] = Body(..., embed=True),  # expects {"file_ids": [...]}
+    db=Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    await get_and_check_project_ownership(project_id, db, current_user)
+    return await process_multiple_files(project_id, file_ids, db)
+
+@router.post("/projects/{project_id}/process-files", summary="Process all files in the project according to preferences.")
+async def process_project_files_view(project_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):
+    await get_and_check_project_ownership(project_id, db, current_user)
+    return await process_project_files(project_id, db)
+
+
