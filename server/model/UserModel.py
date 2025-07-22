@@ -42,6 +42,9 @@ class UserResponse(UserBase):
     @model_validator(mode="before")
     @classmethod
     def from_mongo(cls, data):
+        # Ensure data is a dict
+        if not isinstance(data, dict):
+            data = data.dict(by_alias=True)
         # Convert _id to id and remove hashed_password if present
         if "_id" in data:
             data["id"] = str(data["_id"])

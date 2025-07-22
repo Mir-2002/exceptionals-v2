@@ -17,4 +17,4 @@ async def login(user: UserLogin, db=Depends(get_db)):
 
 @router.get("/me", response_model=UserResponse, summary="Get current user information")
 async def get_me(current_user=Depends(get_current_user)):
-    return await current_user
+    return current_user
