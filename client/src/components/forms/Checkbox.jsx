@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import SimonAndMarceline from "../../assets/simon_and_marceline.png";
+import SimonAndMarceline from "../../assets/png/simon_and_marceline.png";
 import checkSound from "../../assets/remember_you.mp3"; // Add your sound file to assets
 
 const Checkbox = ({
@@ -34,7 +34,7 @@ const Checkbox = ({
           type="checkbox"
           checked={checked}
           onChange={onChange}
-          className="w-4 h-4 accent-blue-600"
+          className="w-4 h-4 accent-primary"
           {...props}
         />
         {label && (

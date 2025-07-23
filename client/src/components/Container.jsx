@@ -2,11 +2,11 @@ import React from "react";
 
 const Container = ({ children, className }) => {
   return (
-    <div
-      className={`w-full h-screen flex items-center justify-center font-mono ${className}`}
+    <main
+      className={`w-full min-h-screen flex text-primary font-funnel-sans ${className}`}
     >
       {children}
-    </div>
+    </main>
   );
 };
 

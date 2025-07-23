@@ -13,8 +13,8 @@ const Button = ({
 }) => {
   const base = "text-md p-3 rounded-xl text-white transition";
   const variants = {
-    primary: "bg-blue-600 hover:bg-blue-700",
-    secondary: "bg-gray-400 hover:bg-gray-500",
+    primary: "bg-primary hover:bg-primary/90",
+    secondary: "bg-secondary hover:bg-secondary/90",
     danger: "bg-red-500 hover:bg-red-600",
   };
   const disabledStyle = "opacity-50 cursor-not-allowed";
