@@ -43,7 +43,7 @@ const Header = () => {
               <li>
                 <Link
                   to="/login"
-                  className="hover:bg-gray-200 font-semibold p-3 rounded-xl"
+                  className="hover:bg-white font-semibold p-3 rounded-xl"
                 >
                   Sign In
                 </Link>
