@@ -1,17 +1,23 @@
 from datetime import datetime
+from enum import Enum
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field, model_validator
 from bson import ObjectId
 
 from utils.custom_type import PyObjectId
 
-
+class ProjectStatus(str, Enum):
+    COMPLETE = "complete"
+    IN_PROGRESS = "in_progress"
+    EMPTY = "empty"
+    
 class ProjectBase(BaseModel):
     name: str 
     description: str
     user_id: str 
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+    status: ProjectStatus = ProjectStatus.EMPTY
 
 class ProjectCreate(ProjectBase):
     pass

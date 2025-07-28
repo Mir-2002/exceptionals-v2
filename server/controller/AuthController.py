@@ -7,6 +7,7 @@ from model.TokenModel import Token, TokenData
 from utils.db import get_db
 from utils.auth import verify_password
 from fastapi.security import OAuth2PasswordBearer
+from bson import ObjectId
 
 # Secret key and algorithm for JWT
 SECRET_KEY = "your-secret-key"
@@ -34,7 +35,7 @@ async def login_user(username: str, password: str, db):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password"
         )
-    token_data = {"sub": user.username, "is_admin": user.is_admin}
+    token_data = {"sub": str(user.id), "is_admin": user.is_admin}
     access_token = create_access_token(token_data)
     return Token(access_token=access_token, token_type="bearer")
 
@@ -45,14 +46,14 @@ async def get_current_user(db=Depends(get_db), token: str = Depends(oauth2_schem
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        user_id: str = payload.get("sub")
         is_admin: bool = payload.get("is_admin", False)
-        if username is None:
+        if user_id is None:
             raise credentials_exception
-        token_data = TokenData(username=username, is_admin=is_admin)
+        token_data = TokenData(username=user_id, is_admin=is_admin)
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
     except JWTError:
         raise credentials_exception
-    user = await db.users.find_one({"username": token_data.username})
     if user is None:
         raise credentials_exception
     return UserInDB(**user)

@@ -11,6 +11,8 @@ router = APIRouter()
 
 @router.post("/projects", summary="Create a project.", response_model=ProjectResponse)
 async def create(project: ProjectCreate, db=Depends(get_db), current_user=Depends(get_current_user)):
+    # Set the project's user_id from the authenticated user.
+    project.user_id = str(current_user.id)
     return await create_project(project, db)
 
 @router.get("/projects/{project_id}", summary="Get a project by ID.",response_model=ProjectResponse)

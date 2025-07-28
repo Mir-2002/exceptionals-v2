@@ -4,6 +4,20 @@ from model.ProjectModel import FileProcessSummary, ProcessFilesSummaryResponse, 
 from utils.db import get_db
 from bson import ObjectId
 
+def calculate_project_status(files):
+    if not files or all(
+        (not f.get("functions") and not f.get("classes")) or
+        (not f.get("processed_functions") and not f.get("processed_classes"))
+        for f in files
+    ):
+        return "empty"
+    if all(
+        (f.get("functions") == f.get("processed_functions", [])) and
+        (f.get("classes") == f.get("processed_classes", []))
+        for f in files if f.get("functions") or f.get("classes")
+    ):
+        return "complete"
+    return "in_progress"
 
 async def create_project(project: ProjectCreate, db):
     existing_project = await db.projects.find_one({"name": project.name})
@@ -42,7 +56,7 @@ async def get_project_by_id(project_id: str, db):
         )
     
 async def get_user_projects(user_id: str, db):
-    user_id = ObjectId(user_id)
+    
     if not user_id:
         raise HTTPException(
             status_code=400,
@@ -50,17 +64,13 @@ async def get_user_projects(user_id: str, db):
         )
     try:
         projects = await db.projects.find({"user_id": user_id}).to_list(length=None)
+        # Return empty array instead of 404
+        return [ProjectResponse(**project) for project in projects]
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while retrieving the user's projects: {str(e)}"
         )
-    if not projects:
-        raise HTTPException(
-            status_code=404,
-            detail="No projects found for this user."
-        )
-    return [ProjectResponse(**project) for project in projects]
     
 async def update_project(project_id: str, project: ProjectUpdate, db):
     project_id = ObjectId(project_id)
@@ -143,7 +153,6 @@ async def apply_preferences_and_update_project(project_id: str, db):
 
         # Directory/file exclusion
         if filename in exclude_files or any(filename.startswith(d + "/") for d in exclude_dirs):
-            # Instead of deleting, just set processed_functions/classes to empty
             await db.files.update_one(
                 {"_id": file["_id"]},
                 {"$set": {
@@ -187,6 +196,14 @@ async def apply_preferences_and_update_project(project_id: str, db):
                 "processed_classes": filtered_classes
             }}
         )
+
+    # After processing, update project status
+    files = await db.files.find({"project_id": project_id}).to_list(length=None)
+    new_status = calculate_project_status(files)
+    await db.projects.update_one(
+        {"_id": ObjectId(project_id)},
+        {"$set": {"status": new_status}}
+    )
 
     return {
         "detail": "Project files updated according to preferences.",
@@ -382,5 +399,12 @@ async def process_project_files(project_id: str, db):
             excluded_methods=excluded_methods or None
         ))
 
+    # After processing, update project status
+    files = await db.files.find({"project_id": project_id}).to_list(length=None)
+    new_status = calculate_project_status(files)
+    await db.projects.update_one(
+        {"_id": ObjectId(project_id)},
+        {"$set": {"status": new_status}}
+    )
+
     return ProcessFilesSummaryResponse(processed_files=summary)
-    
