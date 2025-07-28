@@ -1,25 +1,18 @@
-const API_BASE = "http://localhost:8000/api/auth"; // Adjust if your backend runs elsewhere
+import axios from "axios";
+const API_BASE = "http://localhost:8000/api/auth";
 
 export async function register({ username, email, password }) {
-  const res = await fetch(`${API_BASE}/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, email, password }),
+  const res = await axios.post(`${API_BASE}/register`, {
+    username,
+    email,
+    password,
   });
-  if (!res.ok)
-    throw new Error((await res.json()).detail || "Registration failed");
-  return await res.json();
+  return res.data;
 }
 
 export async function login({ username, password }) {
-  const res = await fetch(`${API_BASE}/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!res.ok) throw new Error((await res.json()).detail || "Login failed");
-  const data = await res.json();
-  // Save token to localStorage for future requests
+  const res = await axios.post(`${API_BASE}/login`, { username, password });
+  const data = res.data;
   localStorage.setItem("token", data.access_token);
   return data;
 }
@@ -35,9 +28,12 @@ export function getToken() {
 export async function getCurrentUser() {
   const token = getToken();
   if (!token) return null;
-  const res = await fetch(`${API_BASE}/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  return await res.json();
+  try {
+    const res = await axios.get(`${API_BASE}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data; // Should include ObjectId as id
+  } catch {
+    return null;
+  }
 }

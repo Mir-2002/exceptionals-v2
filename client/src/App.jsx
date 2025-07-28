@@ -14,6 +14,7 @@ import AIPic from "./assets/svg/ai-code.svg";
 import Time from "./assets/svg/time-management.svg";
 import CodeInspect from "./assets/svg/code_inspection.svg";
 import { generateDocstring } from "./services/documentationService";
+import CreateProject from "./pages/CreateProject";
 
 // InfoCard component for Info section
 function InfoCard({ imgSrc, alt, heading, children }) {
@@ -271,6 +272,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/create-project"
+          element={
+            <ProtectedRoute>
+              <CreateProject />
             </ProtectedRoute>
           }
         />
