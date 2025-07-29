@@ -15,6 +15,7 @@ import Time from "./assets/svg/time-management.svg";
 import CodeInspect from "./assets/svg/code_inspection.svg";
 import { generateDocstring } from "./services/documentationService";
 import CreateProject from "./pages/CreateProject";
+import ViewProject from "./pages/ViewProject";
 
 // InfoCard component for Info section
 function InfoCard({ imgSrc, alt, heading, children }) {
@@ -280,6 +281,14 @@ function App() {
           element={
             <ProtectedRoute>
               <CreateProject />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/projects/:projectId"
+          element={
+            <ProtectedRoute>
+              <ViewProject />
             </ProtectedRoute>
           }
         />

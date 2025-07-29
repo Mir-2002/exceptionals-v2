@@ -18,7 +18,7 @@ function ActionsButton({ children, className, onClick }) {
 function Actions() {
   const navigate = useNavigate();
   return (
-    <div className="flex flex-row p-5 gap-x-5 w-full h-auto items-center justify-center border-b-2 border-gray-200">
+    <div className="flex flex-row px-3 py-5 gap-x-5 w-full h-auto items-center justify-center border-b-2 border-gray-200">
       <ActionsButton
         className="bg-primary text-white hover:bg-primary hover:text-white"
         onClick={() => navigate("/dashboard/create-project")}

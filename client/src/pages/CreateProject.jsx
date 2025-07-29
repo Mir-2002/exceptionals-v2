@@ -5,6 +5,7 @@ import { createProject } from "../services/projectService";
 import { uploadFile, uploadProjectZip } from "../services/fileService";
 import { useNavigate } from "react-router-dom";
 import { getToken, getCurrentUser } from "../services/authService";
+import Heading from "../components/Heading";
 
 const CreateProject = () => {
   const [name, setName] = useState("");
@@ -76,8 +77,8 @@ const CreateProject = () => {
   return (
     <Container className="flex-row w-full items-start h-screen">
       <Sidebar />
-      <main className="flex flex-col items-center justify-center w-full h-full p-10">
-        <h1 className="text-3xl font-bold mb-6">Create Project</h1>
+      <main className="flex flex-col items-center justify-center w-full h-full p-10 gap-y-5">
+        <Heading>Create Project</Heading>
         <form
           className="flex flex-col gap-y-5 w-full max-w-lg bg-white p-8 rounded-lg shadow-md"
           onSubmit={handleSubmit}
@@ -139,6 +140,12 @@ const CreateProject = () => {
             disabled={loading}
           >
             {loading ? "Creating..." : "Create Project"}
+          </button>
+          <button
+            className="text-lg text-secondary hover:bg-gray-200 hover:text-primary w-full p-2 rounded-md "
+            onClick={() => navigate("/dashboard")}
+          >
+            Back to Dashboard
           </button>
         </form>
       </main>

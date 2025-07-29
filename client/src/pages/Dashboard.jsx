@@ -7,6 +7,7 @@ import DocumentationsDash from "../components/dashboard/DocumentationsDash";
 import { getUserProjects } from "../services/userService";
 import { getToken, getCurrentUser } from "../services/authService";
 
+// ...existing code...
 function MainDash() {
   const [projects, setProjects] = useState([]);
   const [user, setUser] = useState(null);
@@ -46,8 +47,8 @@ function MainDash() {
       ) : error ? (
         <div className="mt-10 text-lg text-red-500">{error}</div>
       ) : (
-        <div className="flex flex-row w-full h-full">
-          <ProjectsDash projects={projects} />
+        <div className="flex flex-row w-full flex-1 min-h-0">
+          <ProjectsDash projects={projects} onProjectsChange={setProjects} />
           <DocumentationsDash />
         </div>
       )}
@@ -57,9 +58,11 @@ function MainDash() {
 
 const Dashboard = () => {
   return (
-    <Container className="flex-row w-full items-start h-screen">
+    <Container className="flex-row w-full items-start h-screen max-h-screen">
       <Sidebar />
-      <MainDash />
+      <div className="flex-1 overflow-hidden h-full">
+        <MainDash />
+      </div>
     </Container>
   );
 };

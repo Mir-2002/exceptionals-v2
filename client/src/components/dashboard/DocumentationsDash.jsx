@@ -10,7 +10,7 @@ function DocumentationCard() {
         <p className="text-base text-secondary">Total Files: 1</p>
         <p className="text-base text-secondary">Format: HTML</p>
       </div>
-      <div className="w-1/6 h-full flex items-center justify-center hover:bg-gray-100">
+      <div className="w-1/6 flex items-center justify-center hover:bg-gray-100">
         <MdOutlineKeyboardArrowRight className="text-3xl text-primary" />
       </div>
     </div>
