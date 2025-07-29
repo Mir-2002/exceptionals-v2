@@ -5,18 +5,22 @@ from utils.db import get_db
 from bson import ObjectId
 
 def calculate_project_status(files):
-    if not files or all(
-        (not f.get("functions") and not f.get("classes")) or
-        (not f.get("processed_functions") and not f.get("processed_classes"))
-        for f in files
-    ):
+    if not files:
         return "empty"
+    
+    # If files exist but have no functions/classes (non-Python or empty files)
+    if all(not f.get("functions") and not f.get("classes") for f in files):
+        return "empty"
+    
+    # If all files with content have been fully processed
     if all(
         (f.get("functions") == f.get("processed_functions", [])) and
         (f.get("classes") == f.get("processed_classes", []))
         for f in files if f.get("functions") or f.get("classes")
     ):
         return "complete"
+    
+    # Files exist with content but not fully processed
     return "in_progress"
 
 async def create_project(project: ProjectCreate, db):
@@ -56,7 +60,6 @@ async def get_project_by_id(project_id: str, db):
         )
     
 async def get_user_projects(user_id: str, db):
-    
     if not user_id:
         raise HTTPException(
             status_code=400,
@@ -107,8 +110,8 @@ async def update_project(project_id: str, project: ProjectUpdate, db):
         )
     
 async def delete_project(project_id: str, db):
-    project_id = ObjectId(project_id)
-    existing_project = await db.projects.find_one({"_id": project_id})
+    project_oid = ObjectId(project_id)
+    existing_project = await db.projects.find_one({"_id": project_oid})
     if not existing_project:
         raise HTTPException(
             status_code=404,
@@ -116,18 +119,28 @@ async def delete_project(project_id: str, db):
         )
     
     try:
-        result = await db.projects.delete_one({"_id": project_id})
+        # 1. Delete all associated files from the 'files' collection
+        # The project_id is stored as a string in the files collection
+        await db.files.delete_many({"project_id": project_id})
+
+        # 2. Delete associated preferences from the 'preferences' collection
+        await db.preferences.delete_one({"project_id": project_id})
+
+        # 3. Delete the project itself from the 'projects' collection
+        result = await db.projects.delete_one({"_id": project_oid})
+        
         if result.deleted_count == 0:
             raise HTTPException(
                 status_code=400,
                 detail="Failed to delete the project."
             )
-        return {"detail": "Project deleted successfully."}
+        return {"detail": "Project and all associated files and preferences deleted successfully."}
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while deleting the project: {str(e)}"
         )
+
     
 async def apply_preferences_and_update_project(project_id: str, db):
     # 1. Fetch preferences

@@ -1,6 +1,7 @@
 from fastapi import Depends, File, UploadFile, HTTPException
 from bson import ObjectId
 from model.FileModel import FileResponse
+from controller.ProjectController import calculate_project_status
 from utils.build_tree import build_file_tree
 from utils.db import get_db
 from utils.parser import extract_functions_classes_from_content, extract_py_files_from_zip
@@ -16,12 +17,29 @@ async def upload_file(project_id: str, file: UploadFile = File(...), db=Depends(
             "classes": parsed["classes"]
         }
         result = await db.files.insert_one(file_data)
+        
+        try:
+            # 1. Fetch all files for the project to get a complete list
+            all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
+            
+            # 2. Calculate the new status using the function from ProjectController
+            new_status = calculate_project_status(all_project_files)
+            
+            # 3. Update the project document with the new status
+            await db.projects.update_one(
+                {"_id": ObjectId(project_id)},
+                {"$set": {"status": new_status}}
+            )
+        except Exception as e:
+            # Optional: Log this error, but don't fail the whole upload because of it
+            print(f"Warning: Could not update project status for {project_id}. Error: {e}")
         return {"file_id": str(result.inserted_id), "filename": file.filename}
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while uploading the file: {str(e)}"
         )
+    
     
 async def upload_project_zip(project_id: str, zip_file: UploadFile = File(...), db=Depends(get_db)):
     try:
@@ -30,6 +48,15 @@ async def upload_project_zip(project_id: str, zip_file: UploadFile = File(...), 
         for file_data in extracted_files:
             file_data["project_id"] = project_id
             await db.files.insert_one(file_data)
+        try:
+            all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
+            new_status = calculate_project_status(all_project_files)
+            await db.projects.update_one(
+                {"_id": ObjectId(project_id)},
+                {"$set": {"status": new_status}}
+            )
+        except Exception as e:
+            print(f"Warning: Could not update project status for {project_id} after zip upload. Error: {e}")
         return {"detail": "Project uploaded and processed", "files_processed": len(extracted_files)}
     except Exception as e:
         raise HTTPException(
