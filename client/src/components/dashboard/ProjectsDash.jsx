@@ -164,7 +164,10 @@ function ProjectCard({ project, onProjectDeleted }) {
             <FaEye className="text-base" />
             View
           </button>
-          <button className="bg-secondary text-white font-semibold px-4 py-2 rounded-md transition-all duration-200 hover:-translate-y-1 hover:bg-secondary/90 flex items-center gap-x-2">
+          <button
+            className="bg-secondary text-white font-semibold px-4 py-2 rounded-md transition-all duration-200 hover:-translate-y-1 hover:bg-secondary/90 flex items-center gap-x-2"
+            onClick={() => navigate(`/dashboard/projects/${project.id}/manage`)}
+          >
             <AiFillTool className="text-base" />
             Manage
           </button>

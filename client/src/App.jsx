@@ -16,6 +16,10 @@ import CodeInspect from "./assets/svg/code_inspection.svg";
 import { generateDocstring } from "./services/documentationService";
 import CreateProject from "./pages/CreateProject";
 import ViewProject from "./pages/ViewProject";
+import ManageProject from "./pages/ManageProject";
+import Preferences from "./components/projects/Preferences";
+import Documentation from "./components/projects/Documentation";
+import Files from "./components/projects/Files";
 
 // InfoCard component for Info section
 function InfoCard({ imgSrc, alt, heading, children }) {
@@ -292,6 +296,18 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/dashboard/projects/:projectId/manage"
+          element={
+            <ProtectedRoute>
+              <ManageProject />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Files />} />
+          <Route path="preferences" element={<Preferences />} />
+          <Route path="documentation" element={<Documentation />} />
+        </Route>
       </Route>
     </Routes>
   );

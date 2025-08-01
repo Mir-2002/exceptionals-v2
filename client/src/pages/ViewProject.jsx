@@ -6,8 +6,17 @@ import Heading from "../components/Heading";
 import { getProjectById } from "../services/projectService";
 import { getProjectFiles, getProjectFileTree } from "../services/fileService";
 import { getToken } from "../services/authService";
-import { FaFolder, FaFolderOpen, FaFile, FaPython } from "react-icons/fa";
-import { MdExpandMore, MdChevronRight } from "react-icons/md";
+import {
+  FaFolder,
+  FaFolderOpen,
+  FaFile,
+  FaPython,
+  FaChevronRight,
+} from "react-icons/fa";
+import {
+  MdExpandMore,
+  MdChevronRight as MdChevronRightIcon,
+} from "react-icons/md";
 
 // Helper function to format status
 function formatStatus(status) {
@@ -44,7 +53,7 @@ function TreeNode({ node, level = 0 }) {
     }
 
     if (name.endsWith(".py")) {
-      return <FaPython className="text-green-600" />;
+      return <FaPython className="text-yellow-600" />;
     }
 
     return <FaFile className="text-gray-500" />;
@@ -61,7 +70,7 @@ function TreeNode({ node, level = 0 }) {
           isExpanded ? (
             <MdExpandMore className="text-gray-400 mr-1" />
           ) : (
-            <MdChevronRight className="text-gray-400 mr-1" />
+            <MdChevronRightIcon className="text-gray-400 mr-1" />
           )
         ) : (
           <span className="w-4 mr-1" />
@@ -239,18 +248,22 @@ function ViewProject() {
       <Sidebar />
       <div className="flex-1 overflow-hidden h-full">
         <main className="flex flex-col w-full h-full p-10">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <Heading className="text-start mb-2">{project.name}</Heading>
-              <p className="text-gray-600 text-lg">{project.description}</p>
-            </div>
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center text-sm text-gray-500 mb-4">
             <button
               onClick={() => navigate("/dashboard")}
-              className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors"
+              className="hover:text-primary transition-colors"
             >
-              Back to Dashboard
+              Dashboard
             </button>
+            <FaChevronRight className="mx-2 text-xs" />
+            <span className="text-gray-800 font-medium">Project Overview</span>
+          </div>
+
+          {/* Header */}
+          <div className="mb-8">
+            <Heading className="text-start mb-2">{project.name}</Heading>
+            <p className="text-gray-600 text-lg">{project.description}</p>
           </div>
 
           {/* Project Stats */}
