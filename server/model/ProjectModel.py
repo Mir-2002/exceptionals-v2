@@ -25,6 +25,7 @@ class ProjectCreate(ProjectBase):
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(None, description="Updated name of the project")
     description: Optional[str] = Field(None, description="Updated description of the project")
+    status: Optional[ProjectStatus] = Field(None, description="Updated status of the project")
 
 class ProjectInDB(ProjectBase):
     id: Optional[PyObjectId] =  Field(default_factory=PyObjectId, alias="_id")
