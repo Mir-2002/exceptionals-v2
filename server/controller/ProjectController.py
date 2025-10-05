@@ -23,7 +23,7 @@ def calculate_project_status(files):
     # Files exist with content but not fully processed
     return "in_progress"
 
-async def create_project(project: ProjectCreate, db):
+async def create_project(project: ProjectCreate, db, current_user):
     existing_project = await db.projects.find_one({"name": project.name})
     if existing_project:
         raise HTTPException(
@@ -32,7 +32,11 @@ async def create_project(project: ProjectCreate, db):
         )
     
     try:
-        project_data = ProjectInDB(**project.model_dump())
+        project_data = ProjectInDB(
+            name=project.name,
+            description=project.description,
+            user_id=str(current_user.id),
+        )
         result = await db.projects.insert_one(project_data.model_dump(by_alias=True))
 
         response_data = project_data.model_dump(by_alias=True)

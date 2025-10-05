@@ -5,6 +5,7 @@ import { AuthProvider } from "./context/authContext";
 import Dashboard from "./pages/Dashboard";
 import Header from "./components/Header";
 import CreateProject from "./components/CreateProject";
+import ProjectDetails from "./components/ProjectDetails";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/projects/create" element={<CreateProject />} />
+            <Route path="/projects/:projectId" element={<ProjectDetails />} />
           </Routes>
         </div>
       </AuthProvider>

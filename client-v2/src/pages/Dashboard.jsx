@@ -24,6 +24,10 @@ const Dashboard = () => {
     fetchProjects();
   }, [user, token]);
 
+  const handleCardClick = (projectId) => {
+    navigate(`/projects/${projectId}`);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
@@ -40,9 +44,12 @@ const Dashboard = () => {
           <div className="text-gray-500 text-center">No projects found</div>
         ) : (
           <div>
-            {/* Replace this with your project card UI */}
             {projects.map((project) => (
-              <div key={project.id} className="mb-4 p-4 border rounded shadow">
+              <div
+                key={project.id}
+                className="mb-4 p-4 border rounded shadow cursor-pointer hover:bg-blue-50 transition"
+                onClick={() => handleCardClick(project.id)}
+              >
                 {project.name}
               </div>
             ))}

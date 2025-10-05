@@ -19,8 +19,9 @@ class ProjectBase(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
     status: ProjectStatus = ProjectStatus.EMPTY
 
-class ProjectCreate(ProjectBase):
-    pass
+class ProjectCreate(BaseModel):
+    name: str
+    description: str
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(None, description="Updated name of the project")
