@@ -1,6 +1,6 @@
 def build_file_tree(files):
     """
-    files: list of dicts with 'filename', 'functions', 'classes'
+    files: list of dicts with 'filename', 'functions', 'classes', 'id' or '_id'
     Returns a nested tree structure suitable for frontend display.
     """
     def insert(parts, file_info, node):
@@ -9,6 +9,7 @@ def build_file_tree(files):
         if len(parts) == 1:
             node["children"].append({
                 "name": part,
+                "id": str(file_info.get("id") or file_info.get("_id")),  # Add id to file node
                 "functions": file_info["functions"],
                 "classes": file_info["classes"]
             })
