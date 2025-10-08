@@ -3,36 +3,37 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { AuthProvider } from "./context/authContext";
 import Dashboard from "./pages/Dashboard";
-import Header from "./components/Header";
+import Layout from "./components/Layout";
 import CreateProject from "./components/CreateProject";
 import ProjectDetails from "./components/ProjectDetails";
+import SetPreferences from "./components/SetPreferences";
+import SetFilePreferences from "./components/SetFilePreferences";
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="w-screen h-screen flex flex-col">
-          <Routes>
-            <Route
-              path="/dashboard"
-              element={
-                <>
-                  <div className="h-[12vh] min-h-[70px]">
-                    <Header />
-                  </div>
-                  <div className="flex-1 overflow-auto">
-                    <Dashboard />
-                  </div>
-                </>
-              }
-            />
-            <Route path="/" element={<Login />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+        <Routes>
+          {/* Public routes without header */}
+          <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Protected routes with header and layout */}
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/projects/create" element={<CreateProject />} />
             <Route path="/projects/:projectId" element={<ProjectDetails />} />
-          </Routes>
-        </div>
+            <Route
+              path="/projects/:projectId/preferences"
+              element={<SetPreferences />}
+            />
+            <Route
+              path="/projects/:projectId/preferences/files"
+              element={<SetFilePreferences />}
+            />
+          </Route>
+        </Routes>
       </AuthProvider>
     </BrowserRouter>
   );

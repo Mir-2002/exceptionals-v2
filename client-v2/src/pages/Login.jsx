@@ -19,10 +19,9 @@ const Login = () => {
       );
     }
   };
-
   return (
-    <>
-      <section className="flex flex-col w-full h-full justify-center items-center gap-y-4">
+    <div className="bg-gray-50 min-h-screen w-screen overflow-x-hidden flex justify-center items-center">
+      <section className="flex flex-col w-full max-w-md h-full justify-center items-center gap-y-4 px-6">
         <h1 className="text-2xl font-bold">Login</h1>
         <Form
           fields={[
@@ -46,8 +45,14 @@ const Login = () => {
           buttonText="Login"
         />
         {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+        <p className="mt-4 text-sm text-gray-600">
+          Don't have an account?{" "}
+          <a href="/register" className="text-blue-600 hover:underline">
+            Register here
+          </a>
+        </p>
       </section>
-    </>
+    </div>
   );
 };
 

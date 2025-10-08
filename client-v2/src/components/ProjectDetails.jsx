@@ -280,23 +280,43 @@ const ProjectDetails = () => {
   if (!project)
     return <div className="p-10 text-red-500">Project not found.</div>;
 
-  // ...existing code...
   return (
-    <div className="flex flex-row gap-8 w-full max-w-none mx-auto mt-10 px-4 overflow-x-hidden justify-center items-start">
+    <div className="flex flex-row gap-8 w-full max-w-none mx-auto mt-10 px-4 overflow-x-hidden justify-center">
       {/* Main Project Box */}
-      <div className="w-[500px] min-w-80 max-w-[500px] p-6 border rounded-lg shadow bg-white">
+      <div className="w-[500px] p-6 border rounded-lg shadow bg-white">
         {/* Project Details */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2">{project.name}</h2>
+          <h2 className="text-2xl font-bold mb-2 break-words">
+            {project.name}
+          </h2>
           <div className="mb-2">
             <span className="font-semibold">Description:</span>
-            <span className="ml-2 text-gray-700">{project.description}</span>
+            <span className="ml-2 text-gray-700 break-words">
+              {project.description}
+            </span>
           </div>
           <div className="mb-2">
             <span className="font-semibold">Status:</span>
-            <span className="ml-2 text-gray-700">{project.status}</span>
+            {project.status.toLowerCase() === "empty" || !project.status ? (
+              <span className="ml-2 px-2 py-1 rounded bg-gray-200 text-gray-700 font-semibold">
+                EMPTY
+              </span>
+            ) : project.status.toLowerCase() === "in_progress" ? (
+              <span className="ml-2 px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-semibold">
+                IN PROGRESS
+              </span>
+            ) : project.status.toLowerCase() === "completed" ? (
+              <span className="ml-2 px-2 py-1 rounded bg-green-100 text-green-800 font-semibold">
+                COMPLETED
+              </span>
+            ) : (
+              <span className="ml-2 px-2 py-1 rounded bg-gray-200 text-gray-700 font-semibold">
+                {project.status}
+              </span>
+            )}
           </div>
         </div>
+
         {/* Upload Section */}
         <div className="mb-8">
           <label className="block mb-2 font-medium">
@@ -318,9 +338,9 @@ const ProjectDetails = () => {
               {files.map((file, idx) => (
                 <li
                   key={idx}
-                  className="flex items-center justify-between mb-1"
+                  className="flex items-center justify-between mb-1 gap-2"
                 >
-                  <span className="truncate flex-grow min-w-0 mr-2">
+                  <span className="truncate flex-grow min-w-0 break-all">
                     {file.name}
                   </span>
                   <button
@@ -344,9 +364,10 @@ const ProjectDetails = () => {
             {uploading ? "Uploading..." : "Upload Files"}
           </button>
         </div>
+
         {/* File Tree */}
         <div
-          className="bg-gray-50 p-4 rounded border flex flex-col"
+          className="bg-gray-50 p-4 rounded border flex flex-col overflow-hidden"
           style={{ height: "40vh" }}
         >
           <h3 className="text-lg font-bold mb-2 flex-shrink-0">
@@ -360,14 +381,36 @@ const ProjectDetails = () => {
             )}
           </div>
         </div>
+
         {/* Actions */}
-        <div className="flex gap-2 mt-6">
-          <button
-            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-            onClick={() => navigate(-1)}
-          >
-            Back
-          </button>
+        <div className="flex justify-between items-center mt-6">
+          {/* Left side: Back & Start Documentation */}
+          <div className="flex gap-2">
+            <button
+              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              onClick={() => navigate(-1)}
+            >
+              Back
+            </button>
+            <button
+              className={`px-4 py-2 rounded text-white ${
+                fileTree && fileTree.children && fileTree.children.length > 0
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-gray-400 cursor-not-allowed"
+              }`}
+              onClick={() =>
+                fileTree && fileTree.children && fileTree.children.length > 0
+                  ? navigate(`/projects/${projectId}/preferences`)
+                  : undefined
+              }
+              disabled={
+                !(fileTree && fileTree.children && fileTree.children.length > 0)
+              }
+            >
+              Start Documentation
+            </button>
+          </div>
+          {/* Right side: Delete Project */}
           <button
             className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
             onClick={handleDelete}
@@ -377,10 +420,11 @@ const ProjectDetails = () => {
           </button>
         </div>
       </div>
-      {/* File Content Box (outside main box, vertically centered) */}
+
+      {/* File Content Box */}
       {showFileBox && (
-        <div className="w-[500px] min-w-80 max-w-[500px] bg-gray-50 p-6 rounded border shadow">
-          <h3 className="text-lg font-bold mb-4">
+        <div className="w-[500px] bg-gray-50 p-6 rounded border shadow">
+          <h3 className="text-lg font-bold mb-4 break-words">
             {viewingFileName ? `Viewing: ${viewingFileName}` : "File Contents"}
           </h3>
           <div className="w-full max-h-[70vh] overflow-auto rounded">
@@ -394,6 +438,8 @@ const ProjectDetails = () => {
                 margin: 0,
                 padding: "1rem",
                 minHeight: "200px",
+                maxWidth: "100%",
+                overflowX: "auto",
               }}
               wrapLines={true}
               wrapLongLines={true}

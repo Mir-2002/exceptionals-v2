@@ -21,10 +21,9 @@ const Register = () => {
       setError(err?.response?.data?.message || err?.message || "");
     }
   };
-
   return (
-    <>
-      <section className="flex flex-col w-full h-full justify-center items-center gap-y-4">
+    <div className="bg-gray-50 min-h-screen w-screen overflow-x-hidden flex justify-center items-center">
+      <section className="flex flex-col w-full max-w-md h-full justify-center items-center gap-y-4 px-6">
         <h1 className="text-2xl font-bold">Register</h1>
         <Form
           fields={[
@@ -57,13 +56,24 @@ const Register = () => {
               placeholder: "Confirm your password",
             },
           ]}
-          initialValues={{ email: "", password: "" }}
+          initialValues={{
+            Username: "",
+            email: "",
+            password: "",
+            confirmPassword: "",
+          }}
           onSubmit={handleRegister}
           buttonText="Register"
         />
         {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+        <p className="mt-4 text-sm text-gray-600">
+          Already have an account?{" "}
+          <a href="/login" className="text-blue-600 hover:underline">
+            Login here
+          </a>
+        </p>
       </section>
-    </>
+    </div>
   );
 };
 
