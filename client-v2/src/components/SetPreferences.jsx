@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getProjectById } from "../services/projectService";
-import { getAllFiles } from "../services/fileService";
 import { useAuth } from "../context/authContext";
 import { usePreferences } from "../context/preferenceContext";
 
@@ -9,48 +7,22 @@ const SetPreferences = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
-  const [project, setProject] = useState(null);
-  const [files, setFiles] = useState([]);
-  const [functionsCount, setFunctionsCount] = useState(0);
-  const [classesCount, setClassesCount] = useState(0);
 
-  // Use preference context
   const {
     initializePreferences,
-    currentStep,
     isStepCompleted,
     isStepAccessible,
     getStepStatus,
-    goToStep,
     loading: prefsLoading,
     error: prefsError,
-    totalFiles,
+    allFilesData,
     getIncludedFilesCount,
+    getFunctionClassCounts,
+    resetAllPreferences, // <-- added
   } = usePreferences();
 
   useEffect(() => {
-    const fetchData = async () => {
-      const proj = await getProjectById(projectId, token);
-      setProject(proj);
-
-      const fileList = await getAllFiles(projectId, token);
-      setFiles(fileList);
-
-      let funcCount = 0;
-      let classCount = 0;
-
-      fileList.forEach((file) => {
-        funcCount += file.functions ? file.functions.length : 0;
-        classCount += file.classes ? file.classes.length : 0;
-      });
-
-      setFunctionsCount(funcCount);
-      setClassesCount(classCount);
-
-      // Initialize preferences context
-      await initializePreferences(projectId, token);
-    };
-    if (token) fetchData();
+    if (token) initializePreferences(projectId, token);
   }, [projectId, token, initializePreferences]);
 
   const getStepButtonClass = (stepNumber) => {
@@ -63,8 +35,22 @@ const SetPreferences = () => {
   };
 
   const handleStepClick = (stepNumber, route) => {
-    if (isStepAccessible(stepNumber)) {
-      navigate(route);
+    if (isStepAccessible(stepNumber)) navigate(route);
+  };
+
+  const handleResetAll = async () => {
+    if (
+      window.confirm(
+        "Are you sure you want to reset ALL preferences? This cannot be undone."
+      )
+    ) {
+      const ok = await resetAllPreferences();
+      if (ok) {
+        alert("All preferences have been reset.");
+        initializePreferences(projectId, token);
+      } else {
+        alert("Failed to reset preferences.");
+      }
     }
   };
 
@@ -73,7 +59,6 @@ const SetPreferences = () => {
       <div className="flex justify-center mt-10">Loading preferences...</div>
     );
   }
-
   if (prefsError) {
     return (
       <div className="flex justify-center mt-10 text-red-600">
@@ -83,6 +68,8 @@ const SetPreferences = () => {
   }
 
   const includedFilesCount = getIncludedFilesCount();
+  const { totalFunctions, totalClasses, includedFunctions, includedClasses } =
+    getFunctionClassCounts();
 
   return (
     <div className="flex flex-col items-center mt-10">
@@ -91,6 +78,13 @@ const SetPreferences = () => {
         onClick={() => navigate(`/projects/${projectId}`)}
       >
         Back
+      </button>
+      <button
+        className="mb-4 px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"
+        onClick={handleResetAll}
+        disabled={prefsLoading}
+      >
+        Reset All Preferences
       </button>
 
       {/* Step Progress Indicator */}
@@ -121,20 +115,17 @@ const SetPreferences = () => {
       </div>
 
       <div className="flex gap-8 justify-center">
-        {/* File Preferences Box */}
+        {/* File Preferences */}
         <div className="bg-white rounded-lg shadow p-6 w-80 flex flex-col items-center">
           <h2 className="text-lg font-bold mb-2">File Preferences</h2>
-
-          {/* File count display */}
           <div className="mb-4 p-3 bg-blue-50 rounded border w-full">
             <p className="text-sm text-blue-800 text-center">
               <span className="font-semibold">
-                {includedFilesCount} of {totalFiles} files
+                {includedFilesCount} of {allFilesData.length}
               </span>{" "}
-              included
+              files included
             </p>
           </div>
-
           <button
             className={`px-4 py-2 rounded ${getStepButtonClass(0)}`}
             onClick={() =>
@@ -143,7 +134,7 @@ const SetPreferences = () => {
             disabled={!isStepAccessible(0)}
           >
             {isStepCompleted(0)
-              ? "Edit File Preferences"
+              ? "✓ Edit File Preferences"
               : "Set File Preferences"}
           </button>
           <p className="mt-4 text-gray-500 text-sm text-center">
@@ -153,20 +144,27 @@ const SetPreferences = () => {
           </p>
         </div>
 
-        {/* Function/Class Preferences Box */}
+        {/* Function/Class Preferences */}
         <div
           className={`bg-white rounded-lg shadow p-6 w-80 flex flex-col items-center ${
             !isStepAccessible(1) ? "opacity-50" : ""
           }`}
         >
           <h2 className="text-lg font-bold mb-2">Function/Class Preferences</h2>
-          <p className="mb-2">
-            Total functions:{" "}
-            <span className="font-semibold">{functionsCount}</span>
-          </p>
-          <p className="mb-4">
-            Total classes: <span className="font-semibold">{classesCount}</span>
-          </p>
+          <div className="mb-4 p-3 bg-green-50 rounded border w-full">
+            <p className="text-sm text-green-800 text-center">
+              <span className="font-semibold">
+                {includedFunctions} of {totalFunctions}
+              </span>{" "}
+              functions
+            </p>
+            <p className="text-sm text-green-800 text-center">
+              <span className="font-semibold">
+                {includedClasses} of {totalClasses}
+              </span>{" "}
+              classes
+            </p>
+          </div>
           <button
             className={`px-4 py-2 rounded ${getStepButtonClass(1)}`}
             onClick={() =>
@@ -184,13 +182,11 @@ const SetPreferences = () => {
           <p className="mt-4 text-gray-500 text-sm text-center">
             {!isStepAccessible(1)
               ? "Complete file preferences first."
-              : isStepCompleted(1)
-              ? "Click to modify your function/class selections."
               : "Choose which functions and classes to document."}
           </p>
         </div>
 
-        {/* Project Preferences Box */}
+        {/* Project Preferences */}
         <div
           className={`bg-white rounded-lg shadow p-6 w-80 flex flex-col items-center ${
             !isStepAccessible(2) ? "opacity-50" : ""
@@ -212,8 +208,6 @@ const SetPreferences = () => {
           <p className="mt-4 text-gray-500 text-sm text-center">
             {!isStepAccessible(2)
               ? "Complete file preferences first."
-              : isStepCompleted(2)
-              ? "Click to modify your project settings."
               : "Configure documentation style and format."}
           </p>
         </div>

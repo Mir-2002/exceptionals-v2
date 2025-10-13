@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getFileTree, getFile } from "../services/fileService";
+import { getFile } from "../services/fileService";
 import { useAuth } from "../context/authContext";
 import { usePreferences } from "../context/preferenceContext";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -9,19 +9,28 @@ import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 const DEFAULT_EXCLUDE_FILES = ["__init__.py", "setup.py"];
 const DEFAULT_EXCLUDE_DIRS = ["venv", "__pycache__"];
 
+const normalizePath = (p) =>
+  (p || "")
+    .replace(/\\/g, "/")
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+/, "");
+
+const getNodePath = (node, parentPath = "") =>
+  normalizePath(
+    node?.path || (parentPath ? `${parentPath}/${node.name}` : node?.name || "")
+  );
+
 const SetFilePreferences = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
 
-  // Use preference context
   const {
     filePreferences,
-    updateSection,
     completeStep,
     loading: prefsLoading,
-    setFileTreeData,
     fileTree,
+    initializePreferences,
   } = usePreferences();
 
   // Local state
@@ -32,116 +41,115 @@ const SetFilePreferences = () => {
   const [viewingFileName, setViewingFileName] = useState("");
   const [showFileBox, setShowFileBox] = useState(false);
 
-  // Use context preferences
+  // Use normalized paths for exclusion
   const [excludedFiles, setExcludedFiles] = useState(
-    filePreferences?.exclude_files || []
+    (filePreferences?.exclude_files || []).map(normalizePath)
   );
   const [excludedDirs, setExcludedDirs] = useState(
-    filePreferences?.exclude_dirs || []
+    (filePreferences?.exclude_dirs || []).map(normalizePath)
   );
 
   useEffect(() => {
-    const fetchData = async () => {
+    const load = async () => {
       setLoading(true);
-      const tree = await getFileTree(projectId, token);
-
-      // Set file tree in context
-      setFileTreeData(tree);
-
-      // Open root folder by default
-      if (tree) {
-        setOpenFolders(new Set([tree.name || "root"]));
+      if (token) {
+        await initializePreferences(projectId, token);
       }
-
       setLoading(false);
     };
-    if (token) fetchData();
-  }, [projectId, token, setFileTreeData]);
+    load();
+  }, [projectId, token, initializePreferences]);
 
-  // Update local state when context changes
   useEffect(() => {
-    setExcludedFiles(filePreferences?.exclude_files || []);
-    setExcludedDirs(filePreferences?.exclude_dirs || []);
+    setExcludedFiles((filePreferences?.exclude_files || []).map(normalizePath));
+    setExcludedDirs((filePreferences?.exclude_dirs || []).map(normalizePath));
   }, [filePreferences]);
 
-  // Helper: check if node is a folder
-  const isFolder = (node) =>
-    node.type === "directory" || (node.children && node.children.length > 0);
+  useEffect(() => {
+    if (fileTree) {
+      setOpenFolders(new Set([fileTree.path || fileTree.name || "root"]));
+    }
+  }, [fileTree]);
 
-  // Helper: recursively collect all files/dirs under a node
-  const collectAll = (node, files = [], dirs = []) => {
+  const isFolder = (node) =>
+    node?.type === "directory" ||
+    node?.type === "folder" ||
+    Array.isArray(node?.children);
+
+  const uniq = (arr) => Array.from(new Set(arr));
+
+  // Recursively collect normalized paths of all files/dirs under a node
+  const collectAll = (node, files = [], dirs = [], parentPath = "") => {
+    if (!node) return { files, dirs };
+    const path = getNodePath(node, parentPath);
     if (isFolder(node)) {
-      dirs.push(node.name);
-      node.children?.forEach((child) => collectAll(child, files, dirs));
+      dirs.push(path);
+      node.children?.forEach((child) => collectAll(child, files, dirs, path));
     } else {
-      files.push(node.name);
+      files.push(path);
     }
     return { files, dirs };
   };
 
-  // Handle checkbox change
-  const handleCheck = (node, checked) => {
+  // Checkbox change
+  const handleCheck = (node, checked, parentPath = "") => {
+    const path = getNodePath(node, parentPath);
     if (isFolder(node)) {
-      const { files, dirs } = collectAll(node, [], []);
+      const { files, dirs } = collectAll(node, [], [], parentPath);
       if (checked) {
+        // Include: remove from exclusions
         setExcludedDirs((prev) =>
-          prev.filter((d) => d !== node.name && !dirs.includes(d))
+          prev.filter((d) => d !== path && !dirs.includes(d))
         );
         setExcludedFiles((prev) => prev.filter((f) => !files.includes(f)));
       } else {
-        setExcludedDirs((prev) => [...prev, node.name, ...dirs]);
-        setExcludedFiles((prev) => [...prev, ...files]);
+        // Exclude: add to exclusions (dedupe)
+        setExcludedDirs((prev) => uniq([...prev, path, ...dirs]));
+        setExcludedFiles((prev) => uniq([...prev, ...files]));
       }
     } else {
       if (checked) {
-        setExcludedFiles((prev) => prev.filter((f) => f !== node.name));
+        setExcludedFiles((prev) => prev.filter((f) => f !== path));
       } else {
-        setExcludedFiles((prev) => [...prev, node.name]);
+        setExcludedFiles((prev) => uniq([...prev, path]));
       }
     }
   };
 
-  // Check if node is included (opposite of excluded)
-  const isIncluded = (node) => {
-    if (isFolder(node)) return !excludedDirs.includes(node.name);
-    return !excludedFiles.includes(node.name);
+  // Included = not excluded
+  const isIncluded = (node, parentPath = "") => {
+    const path = getNodePath(node, parentPath);
+    if (isFolder(node)) return !excludedDirs.includes(path);
+    return !excludedFiles.includes(path);
   };
 
   // Expand/collapse folders
-  const getNodePath = (node, parentPath = "") => {
-    return parentPath ? `${parentPath}/${node.name}` : node.name;
-  };
-
   const handleToggleFolder = (path, e) => {
     e.stopPropagation();
     setOpenFolders((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(path)) {
-        newSet.delete(path);
-      } else {
-        newSet.add(path);
-      }
-      return newSet;
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
     });
   };
 
-  // File content view logic
+  // File content view
   const handleViewFile = async (node) => {
-    if (!node.id) return;
+    if (!node?.id) return;
     try {
       const data = await getFile(projectId, node.id, token);
       setSelectedFile(node.id);
       setViewingFileName(node.name);
       let code = "";
-      if (data.functions && data.functions.length > 0) {
+      if (data.functions?.length) {
         code += data.functions.map((f) => f.code).join("\n\n");
       }
-      if (data.classes && data.classes.length > 0) {
-        code += "\n\n" + data.classes.map((c) => c.code).join("\n\n");
+      if (data.classes?.length) {
+        code +=
+          (code ? "\n\n" : "") + data.classes.map((c) => c.code).join("\n\n");
       }
-      if (!code) {
-        code = "// No code found in functions or classes.";
-      }
+      if (!code) code = "// No code found in functions or classes.";
       setFileContent(code);
       setShowFileBox(true);
     } catch (err) {
@@ -149,12 +157,13 @@ const SetFilePreferences = () => {
     }
   };
 
-  // Render file tree with checkboxes and expand/collapse
+  // Render tree with checkboxes and expand/collapse
   const renderTree = (node, depth = 0, parentPath = "") => {
+    if (!node) return null;
     const path = getNodePath(node, parentPath);
     const nodeIsFolder = isFolder(node);
     const isOpen = openFolders.has(path);
-    const included = isIncluded(node);
+    const included = isIncluded(node, parentPath);
     const style = { paddingLeft: `${depth * 20}px` };
 
     if (nodeIsFolder) {
@@ -174,7 +183,7 @@ const SetFilePreferences = () => {
               checked={included}
               onChange={(e) => {
                 e.stopPropagation();
-                handleCheck(node, e.target.checked);
+                handleCheck(node, e.target.checked, parentPath);
               }}
               className="flex-shrink-0"
             />
@@ -188,8 +197,7 @@ const SetFilePreferences = () => {
             </span>
           </div>
           {isOpen &&
-            node.children &&
-            node.children.map((child) => renderTree(child, depth + 1, path))}
+            node.children?.map((child) => renderTree(child, depth + 1, path))}
         </div>
       );
     }
@@ -207,7 +215,7 @@ const SetFilePreferences = () => {
           checked={included}
           onChange={(e) => {
             e.stopPropagation();
-            handleCheck(node, e.target.checked);
+            handleCheck(node, e.target.checked, parentPath);
           }}
           className="flex-shrink-0"
         />
@@ -223,12 +231,33 @@ const SetFilePreferences = () => {
     );
   };
 
+  // Find all full paths matching default names
+  const collectPathsByName = (
+    node,
+    targetNames = [],
+    isDir,
+    parentPath = "",
+    acc = []
+  ) => {
+    if (!node) return acc;
+    const path = getNodePath(node, parentPath);
+    const folder = isFolder(node);
+    const matches =
+      folder === isDir && targetNames.includes(node.name) ? [path] : [];
+    acc.push(...matches);
+    if (folder) {
+      node.children?.forEach((c) =>
+        collectPathsByName(c, targetNames, isDir, path, acc)
+      );
+    }
+    return acc;
+  };
+
   const handleSave = async () => {
     const success = await completeStep(0, {
       exclude_files: excludedFiles,
       exclude_dirs: excludedDirs,
     });
-
     if (success) {
       alert("File preferences saved successfully!");
       navigate(`/projects/${projectId}/preferences`);
@@ -238,8 +267,24 @@ const SetFilePreferences = () => {
   };
 
   const applyDefault = () => {
-    setExcludedFiles(DEFAULT_EXCLUDE_FILES);
-    setExcludedDirs(DEFAULT_EXCLUDE_DIRS);
+    const defaultFilePaths = collectPathsByName(
+      fileTree,
+      DEFAULT_EXCLUDE_FILES,
+      false,
+      ""
+    );
+    const defaultDirPaths = collectPathsByName(
+      fileTree,
+      DEFAULT_EXCLUDE_DIRS,
+      true,
+      ""
+    );
+    setExcludedFiles((prev) =>
+      Array.from(new Set([...prev, ...defaultFilePaths.map(normalizePath)]))
+    );
+    setExcludedDirs((prev) =>
+      Array.from(new Set([...prev, ...defaultDirPaths.map(normalizePath)]))
+    );
   };
 
   const handleReset = () => {
@@ -271,7 +316,8 @@ const SetFilePreferences = () => {
             Reset Preferences
           </button>
         </div>
-        {loading ? (
+
+        {prefsLoading || loading ? (
           <div>Loading file tree...</div>
         ) : fileTree ? (
           <div className="border rounded p-4 max-h-96 overflow-auto">
@@ -280,6 +326,7 @@ const SetFilePreferences = () => {
         ) : (
           <div className="text-gray-500">No files found.</div>
         )}
+
         <div className="flex justify-between items-center mt-6">
           <button
             className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
@@ -296,7 +343,8 @@ const SetFilePreferences = () => {
           </button>
         </div>
       </div>
-      {/* File Content Box - outside main container */}
+
+      {/* File Content Box */}
       {showFileBox && (
         <div className="w-[500px] bg-gray-50 p-6 rounded border shadow h-fit">
           <h3 className="text-lg font-bold mb-4 break-words">
