@@ -10,6 +10,7 @@ import ProjectDetails from "./components/ProjectDetails";
 import SetPreferences from "./components/SetPreferences";
 import SetFilePreferences from "./components/SetFilePreferences";
 import SetFunctionClassPreference from "./components/SetFunctionClassPreference";
+import FinalizePreference from "./components/FinalizePreference";
 
 function App() {
   return (
@@ -38,6 +39,10 @@ function App() {
               <Route
                 path="/projects/:projectId/preferences/functions-classes"
                 element={<SetFunctionClassPreference />}
+              />
+              <Route
+                path="/projects/:projectId/preferences/finalize"
+                element={<FinalizePreference />}
               />
             </Route>
           </Routes>

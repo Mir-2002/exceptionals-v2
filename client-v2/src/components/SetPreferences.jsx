@@ -197,7 +197,7 @@ const SetPreferences = () => {
           <button
             className={`px-4 py-2 rounded ${getStepButtonClass(2)}`}
             onClick={() =>
-              handleStepClick(2, `/projects/${projectId}/preferences/project`)
+              handleStepClick(2, `/projects/${projectId}/preferences/finalize`)
             }
             disabled={!isStepAccessible(2)}
           >

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/authContext";
 import { usePreferences } from "../context/preferenceContext";
@@ -31,11 +31,9 @@ const SetFunctionClassPreference = () => {
   } = usePreferences();
 
   const [selectedFileId, setSelectedFileId] = useState(null);
+  const [perFileMap, setPerFileMap] = useState({}); // { normalizedPath: { exclude_functions:[], exclude_classes:[] } }
 
-  // Local editable map of per-file exclusions
-  const [perFileMap, setPerFileMap] = useState({});
-
-  // Initialize data via context
+  // Initialize (fetch preferences + file data) once
   useEffect(() => {
     if (!token) return;
     if (!fileTree || allFilesData.length === 0) {
@@ -43,14 +41,15 @@ const SetFunctionClassPreference = () => {
     }
   }, [projectId, token, initializePreferences, fileTree, allFilesData.length]);
 
-  // Populate local perFileMap from persisted prefs
+  // Populate local exclusion map from persisted preferences (skip blank filename entries)
   useEffect(() => {
     const list = Array.isArray(preferences?.per_file_exclusion)
       ? preferences.per_file_exclusion
       : [];
     const map = {};
     list.forEach((e) => {
-      const key = normalizePath(e.filename);
+      const key = normalizePath(e?.filename || "");
+      if (!key) return; // skip invalid
       map[key] = {
         exclude_functions: Array.isArray(e.exclude_functions)
           ? e.exclude_functions
@@ -64,11 +63,16 @@ const SetFunctionClassPreference = () => {
   }, [preferences?.per_file_exclusion]);
 
   const filesWithContent = getFilesWithContent();
+
   const selectedFile = allFilesData.find(
     (file) => String(file.id) === String(selectedFileId)
   );
+
   const selectedKey = useMemo(
-    () => normalizePath(selectedFile?.path || selectedFile?.name || ""),
+    () =>
+      normalizePath(
+        selectedFile?.path || selectedFile?.name || selectedFile?.filename || ""
+      ),
     [selectedFile]
   );
 
@@ -78,6 +82,7 @@ const SetFunctionClassPreference = () => {
   };
 
   const setExcludedForSelected = (updater) => {
+    if (!selectedKey) return;
     setPerFileMap((prev) => {
       const current = prev[selectedKey] || {
         exclude_functions: [],
@@ -88,125 +93,138 @@ const SetFunctionClassPreference = () => {
     });
   };
 
-  const handleToggle = (name, type) => {
+  const handleToggle = (name, exclusionKey) => {
     setExcludedForSelected((curr) => {
-      const arr = new Set(curr[type] || []);
+      const arr = new Set(curr[exclusionKey] || []);
       if (arr.has(name)) arr.delete(name);
       else arr.add(name);
-      return { ...curr, [type]: Array.from(arr) };
+      return { ...curr, [exclusionKey]: Array.from(arr) };
     });
   };
 
   const handleBulkToggle = (file, type, shouldExclude) => {
+    // type: "functions" or "classes"
     const names = (file[type] || []).map((i) => i.name);
+    const exclusionKey =
+      type === "functions" ? "exclude_functions" : "exclude_classes";
     setExcludedForSelected((curr) => {
-      const otherType =
-        type === "functions" ? "exclude_classes" : "exclude_functions";
-      const key =
-        type === "functions" ? "exclude_functions" : "exclude_classes";
-      const base = new Set(curr[key] || []);
-      if (shouldExclude) {
-        names.forEach((n) => base.add(n));
-      } else {
-        names.forEach((n) => base.delete(n));
-      }
-      return {
-        ...curr,
-        [key]: Array.from(base),
-        [otherType]: curr[otherType] || [],
-      };
+      const base = new Set(curr[exclusionKey] || []);
+      if (shouldExclude) names.forEach((n) => base.add(n));
+      else names.forEach((n) => base.delete(n));
+      return { ...curr, [exclusionKey]: Array.from(base) };
     });
   };
 
-  const handleReset = () => {
+  const handleResetSelected = () => {
     if (!selectedKey) return;
-    setPerFileMap((prev) => {
-      const next = { ...prev };
-      next[selectedKey] = { exclude_functions: [], exclude_classes: [] };
-      return next;
-    });
+    setPerFileMap((prev) => ({
+      ...prev,
+      [selectedKey]: { exclude_functions: [], exclude_classes: [] },
+    }));
   };
 
+  // Build payload and save (Step 1)
   const handleSave = async () => {
-    // Convert map -> array for backend, keep normalized paths
+    // Convert map -> array, resolve filename against authoritative file list
     const per_file_exclusion = Object.entries(perFileMap)
-      .map(([filename, val]) => ({
-        filename: normalizePath(filename),
-        exclude_functions: val.exclude_functions || [],
-        exclude_classes: val.exclude_classes || [],
-      }))
-      .filter(
-        (e) =>
-          (e.exclude_functions && e.exclude_functions.length > 0) ||
-          (e.exclude_classes && e.exclude_classes.length > 0)
-      );
+      .map(([key, val]) => {
+        const normalizedKey = normalizePath(key);
+        if (!normalizedKey) return null;
+        // try to find file object
+        const fileObj = allFilesData.find(
+          (f) =>
+            normalizePath(f.path || f.name || f.filename || "") ===
+            normalizedKey
+        );
+        const filename = normalizePath(
+          fileObj?.path || fileObj?.name || fileObj?.filename || normalizedKey
+        );
+        if (!filename) return null;
+
+        const exclude_functions = Array.isArray(val.exclude_functions)
+          ? val.exclude_functions.filter(Boolean)
+          : [];
+        const exclude_classes = Array.isArray(val.exclude_classes)
+          ? val.exclude_classes.filter(Boolean)
+          : [];
+
+        if (exclude_functions.length === 0 && exclude_classes.length === 0)
+          return null;
+
+        return {
+          filename,
+          exclude_functions,
+          exclude_classes,
+        };
+      })
+      .filter(Boolean);
+
+    console.log("Saving per_file_exclusion payload:", per_file_exclusion);
 
     const success = await completeStep(1, per_file_exclusion);
     if (success) navigate(`/projects/${projectId}/preferences`);
     else alert("Failed to save preferences. Please try again.");
   };
 
-  // Render only directories that contain at least one visible file with content
-  const renderFileTree = (node, depth = 0, parentPath = "") => {
-    if (!node) return null;
+  // Prunes empty dirs & excluded items; only shows files with functions/classes
+  const renderFileTree = useCallback(
+    (node, depth = 0, parentPath = "") => {
+      if (!node) return null;
+      const path = getNodePath(node, parentPath);
 
-    const path = getNodePath(node, parentPath);
+      if (!isFileIncluded(node.name, path)) return null;
 
-    // Respect file preferences using normalized path (hide excluded dirs/files)
-    if (!isFileIncluded(node.name, path)) return null;
+      const isDir =
+        node.type === "directory" ||
+        node.type === "folder" ||
+        Array.isArray(node.children);
 
-    const isDir =
-      node.type === "directory" ||
-      node.type === "folder" ||
-      Array.isArray(node.children);
+      if (!isDir) {
+        const hasContent = filesWithContent.some(
+          (f) =>
+            String(f.id) === String(node.id) ||
+            (f.path &&
+              node.path &&
+              normalizePath(f.path) === normalizePath(node.path))
+        );
+        if (!hasContent) return null;
+        return (
+          <div
+            key={node.id || path || node.name}
+            style={{ paddingLeft: `${depth * 18}px` }}
+            className={`py-1 cursor-pointer truncate ${
+              String(selectedFileId) === String(node.id)
+                ? "bg-blue-100 rounded"
+                : ""
+            }`}
+            onClick={() => setSelectedFileId(String(node.id))}
+            title={path}
+          >
+            📄 {node.name}
+          </div>
+        );
+      }
 
-    if (!isDir) {
-      // File: only show if it has functions/classes
-      const hasContent = filesWithContent.some(
-        (f) =>
-          String(f.id) === String(node.id) ||
-          (f.path &&
-            node.path &&
-            normalizePath(f.path) === normalizePath(node.path))
-      );
-      if (!hasContent) return null;
+      const children =
+        node.children
+          ?.map((c) => renderFileTree(c, depth + 1, path))
+          .filter(Boolean) || [];
+      if (children.length === 0) return null;
 
       return (
-        <div
-          key={node.id || path || node.name}
-          style={{ paddingLeft: `${depth * 18}px` }}
-          className={`py-1 cursor-pointer truncate ${
-            String(selectedFileId) === String(node.id)
-              ? "bg-blue-100 rounded"
-              : ""
-          }`}
-          onClick={() => setSelectedFileId(String(node.id))}
-          title={path}
-        >
-          📄 {node.name}
+        <div key={path || node.name}>
+          <div
+            style={{ paddingLeft: `${depth * 18}px` }}
+            className="py-1 font-semibold text-blue-700"
+          >
+            📁 {node.name}
+          </div>
+          {children}
         </div>
       );
-    }
-
-    // Directory: render children first and prune empty dirs
-    const children =
-      node.children
-        ?.map((c) => renderFileTree(c, depth + 1, path))
-        .filter(Boolean) || [];
-    if (children.length === 0) return null;
-
-    return (
-      <div key={path || node.name}>
-        <div
-          style={{ paddingLeft: `${depth * 18}px` }}
-          className="py-1 font-semibold text-blue-700"
-        >
-          📁 {node.name}
-        </div>
-        {children}
-      </div>
-    );
-  };
+    },
+    [filesWithContent, isFileIncluded, selectedFileId, setSelectedFileId]
+  );
 
   if (prefsLoading || filesLoading || !fileTree) {
     return <div className="text-center mt-10">Loading...</div>;
@@ -214,7 +232,7 @@ const SetFunctionClassPreference = () => {
 
   return (
     <div className="flex flex-row gap-8 w-full max-w-none mx-auto mt-10 px-4 justify-center">
-      {/* Left: File Tree */}
+      {/* Left Pane: File Tree */}
       <div className="w-[320px] p-4 border rounded-lg shadow bg-white flex flex-col">
         <h3 className="text-lg font-bold mb-2">Included Files</h3>
         <div className="overflow-auto max-h-[70vh]">
@@ -232,7 +250,7 @@ const SetFunctionClassPreference = () => {
         </button>
       </div>
 
-      {/* Right: Details Panel */}
+      {/* Right Pane: Details */}
       <div className="flex-1 p-6 border rounded-lg shadow bg-white min-h-[70vh]">
         <h2 className="text-xl font-bold mb-4">
           Set Function/Class Preferences
@@ -240,13 +258,15 @@ const SetFunctionClassPreference = () => {
         <p className="mb-4 text-gray-600">
           Exclude functions or classes from the documentation.
         </p>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200 mb-4"
-          disabled={!selectedFile}
-        >
-          Reset Changes (Selected File)
-        </button>
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={handleResetSelected}
+            className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200"
+            disabled={!selectedFile}
+          >
+            Reset (Selected File)
+          </button>
+        </div>
 
         {!selectedFile ? (
           <div className="text-center text-gray-500 py-8">
@@ -254,12 +274,13 @@ const SetFunctionClassPreference = () => {
           </div>
         ) : (
           <div>
-            <h3 className="text-lg font-semibold mb-3 text-blue-800">
-              {selectedFile.name}
+            <h3 className="text-lg font-semibold mb-3 text-blue-800 break-all">
+              {selectedFile.path || selectedFile.name}
             </h3>
 
+            {/* Functions */}
             {selectedFile.functions?.length > 0 && (
-              <div className="mb-4">
+              <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="font-medium">Functions</h4>
                   <div className="flex gap-2">
@@ -281,40 +302,37 @@ const SetFunctionClassPreference = () => {
                     </button>
                   </div>
                 </div>
-                {selectedFile.functions.map((func) => (
-                  <div
-                    key={func.name}
-                    className="border rounded p-3 mb-2 bg-gray-50"
-                  >
-                    <label className="flex items-center gap-2 font-mono">
-                      <input
-                        type="checkbox"
-                        checked={
-                          !excludedForSelected.exclude_functions.includes(
-                            func.name
-                          )
-                        }
-                        onChange={() =>
-                          handleToggle(func.name, "exclude_functions")
-                        }
-                      />
-                      <span
-                        className={
-                          excludedForSelected.exclude_functions.includes(
-                            func.name
-                          )
-                            ? "line-through text-gray-400"
-                            : ""
-                        }
-                      >
-                        {func.name}
-                      </span>
-                    </label>
-                  </div>
-                ))}
+                {selectedFile.functions.map((func) => {
+                  const excluded =
+                    excludedForSelected.exclude_functions.includes(func.name);
+                  return (
+                    <div
+                      key={func.name}
+                      className="border rounded p-3 mb-2 bg-gray-50"
+                    >
+                      <label className="flex items-center gap-2 font-mono">
+                        <input
+                          type="checkbox"
+                          checked={!excluded}
+                          onChange={() =>
+                            handleToggle(func.name, "exclude_functions")
+                          }
+                        />
+                        <span
+                          className={
+                            excluded ? "line-through text-gray-400" : ""
+                          }
+                        >
+                          {func.name}
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
+            {/* Classes */}
             {selectedFile.classes?.length > 0 && (
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -338,35 +356,34 @@ const SetFunctionClassPreference = () => {
                     </button>
                   </div>
                 </div>
-                {selectedFile.classes.map((cls) => (
-                  <div
-                    key={cls.name}
-                    className="border rounded p-3 mb-2 bg-gray-50"
-                  >
-                    <label className="flex items-center gap-2 font-mono">
-                      <input
-                        type="checkbox"
-                        checked={
-                          !excludedForSelected.exclude_classes.includes(
-                            cls.name
-                          )
-                        }
-                        onChange={() =>
-                          handleToggle(cls.name, "exclude_classes")
-                        }
-                      />
-                      <span
-                        className={
-                          excludedForSelected.exclude_classes.includes(cls.name)
-                            ? "line-through text-gray-400"
-                            : ""
-                        }
-                      >
-                        {cls.name}
-                      </span>
-                    </label>
-                  </div>
-                ))}
+                {selectedFile.classes.map((cls) => {
+                  const excluded = excludedForSelected.exclude_classes.includes(
+                    cls.name
+                  );
+                  return (
+                    <div
+                      key={cls.name}
+                      className="border rounded p-3 mb-2 bg-gray-50"
+                    >
+                      <label className="flex items-center gap-2 font-mono">
+                        <input
+                          type="checkbox"
+                          checked={!excluded}
+                          onChange={() =>
+                            handleToggle(cls.name, "exclude_classes")
+                          }
+                        />
+                        <span
+                          className={
+                            excluded ? "line-through text-gray-400" : ""
+                          }
+                        >
+                          {cls.name}
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

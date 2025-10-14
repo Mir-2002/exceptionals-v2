@@ -9,11 +9,12 @@ import { getAllFiles, getFileTree } from "../services/fileService";
 const PreferenceContext = createContext();
 
 export const PreferenceProvider = ({ children }) => {
-  // Core State
+  // Core State (add root-level format for backend compatibility)
   const [preferences, setPreferences] = useState({
     directory_exclusion: { exclude_files: [], exclude_dirs: [] },
     per_file_exclusion: [],
     project_settings: {},
+    format: undefined,
   });
   const [allFilesData, setAllFilesData] = useState([]);
   const [fileTree, setFileTree] = useState(null);
@@ -38,6 +39,30 @@ export const PreferenceProvider = ({ children }) => {
       .replace(/^\.\/+/, "")
       .replace(/^\/+/, "");
 
+  // Filter invalid per-file exclusion entries (empty filename, no exclusions)
+  const sanitizePerFileList = (list) =>
+    (Array.isArray(list) ? list : [])
+      .filter((e) => e && typeof e === "object")
+      .map((e) => ({
+        filename: normalizePath(e.filename || ""),
+        exclude_functions: Array.isArray(e.exclude_functions)
+          ? e.exclude_functions
+          : [],
+        exclude_classes: Array.isArray(e.exclude_classes)
+          ? e.exclude_classes
+          : [],
+        exclude_methods: Array.isArray(e.exclude_methods)
+          ? e.exclude_methods
+          : [],
+      }))
+      .filter(
+        (e) =>
+          e.filename &&
+          (e.exclude_functions.length > 0 ||
+            e.exclude_classes.length > 0 ||
+            e.exclude_methods.length > 0)
+      );
+
   // Path-based exclusion
   const isFileIncluded = useCallback(
     (fileName, filePath = "") => {
@@ -48,10 +73,8 @@ export const PreferenceProvider = ({ children }) => {
       const exclFiles = (exclude_files || []).map(normalizePath);
       const exclDirs = (exclude_dirs || []).map(normalizePath);
 
-      // Exclude if full path is in exclude_files
       if (exclFiles.includes(normalizedPath)) return false;
 
-      // Exclude if any parent directory in path is in exclude_dirs
       const parts = normalizedPath.split("/").filter(Boolean);
       for (let i = 1; i <= parts.length; i++) {
         const parentPath = parts.slice(0, i).join("/");
@@ -133,7 +156,7 @@ export const PreferenceProvider = ({ children }) => {
     setCurrentStep(0);
   }, []);
 
-  // Only load preferences, do not mark steps completed
+  // Load preferences
   const initializePreferences = useCallback(
     async (projId, authToken) => {
       if (!projId || !authToken) return;
@@ -153,10 +176,9 @@ export const PreferenceProvider = ({ children }) => {
             exclude_files: [],
             exclude_dirs: [],
           },
-          per_file_exclusion: Array.isArray(prefs?.per_file_exclusion)
-            ? prefs.per_file_exclusion
-            : [],
+          per_file_exclusion: sanitizePerFileList(prefs?.per_file_exclusion),
           project_settings: prefs?.project_settings || {},
+          format: prefs?.format || prefs?.project_settings?.format || "HTML",
         };
 
         setPreferences(safePrefs);
@@ -167,6 +189,7 @@ export const PreferenceProvider = ({ children }) => {
           directory_exclusion: { exclude_files: [], exclude_dirs: [] },
           per_file_exclusion: [],
           project_settings: {},
+          format: "HTML",
         });
         setAllFilesData([]);
         setFileTree(null);
@@ -181,7 +204,7 @@ export const PreferenceProvider = ({ children }) => {
     [resetCompletedSteps]
   );
 
-  // Only mark step completed on save
+  // Save / complete step
   const completeStep = useCallback(
     async (stepNumber, stepData) => {
       if (!projectId || !token) {
@@ -197,10 +220,33 @@ export const PreferenceProvider = ({ children }) => {
       const section = sectionMap[stepNumber];
       if (!section) return false;
 
-      const nextPreferences = {
-        ...preferences,
-        [section]: stepData,
-      };
+      let nextPreferences;
+
+      if (stepNumber === 1) {
+        // Ensure clean per_file_exclusion list
+        nextPreferences = {
+          ...preferences,
+          per_file_exclusion: sanitizePerFileList(stepData),
+        };
+      } else if (stepNumber === 2) {
+        // Persist format both root-level and project_settings
+        const fmt =
+          stepData.format ||
+          preferences.project_settings?.format ||
+          preferences.format ||
+          "HTML";
+        nextPreferences = {
+          ...preferences,
+          project_settings: {
+            ...preferences.project_settings,
+            ...stepData,
+            format: fmt,
+          },
+          format: fmt,
+        };
+      } else {
+        nextPreferences = { ...preferences, [section]: stepData };
+      }
 
       setLoading(true);
       setError(null);
@@ -223,10 +269,15 @@ export const PreferenceProvider = ({ children }) => {
             exclude_files: [],
             exclude_dirs: [],
           },
-          per_file_exclusion: Array.isArray(authoritative?.per_file_exclusion)
-            ? authoritative.per_file_exclusion
-            : [],
+          per_file_exclusion: sanitizePerFileList(
+            authoritative?.per_file_exclusion
+          ),
           project_settings: authoritative?.project_settings || {},
+          format:
+            authoritative?.format ||
+            authoritative?.project_settings?.format ||
+            nextPreferences.format ||
+            "HTML",
         };
 
         setPreferences(merged);
@@ -242,7 +293,7 @@ export const PreferenceProvider = ({ children }) => {
     [projectId, token, preferences, markStepCompleted]
   );
 
-  // Reset all preferences for the current project and clear completed steps
+  // Reset
   const resetAllPreferences = useCallback(async () => {
     if (!projectId || !token) return false;
     setLoading(true);
@@ -252,12 +303,13 @@ export const PreferenceProvider = ({ children }) => {
         directory_exclusion: { exclude_files: [], exclude_dirs: [] },
         per_file_exclusion: [],
         project_settings: {},
+        format: "HTML",
       };
       await updatePreferences(projectId, emptyPrefs, token);
       setPreferences(emptyPrefs);
       resetCompletedSteps();
       return true;
-    } catch (err) {
+    } catch {
       setError("Failed to reset preferences.");
       return false;
     } finally {
@@ -306,6 +358,8 @@ export const PreferenceProvider = ({ children }) => {
     filePreferences: preferences.directory_exclusion,
     perFileExclusion: preferences.per_file_exclusion,
     projectSettings: preferences.project_settings,
+    docFormat:
+      preferences.project_settings?.format || preferences.format || "HTML",
     isFileIncluded,
     getIncludedFilesCount,
     getIncludedFilesData,
