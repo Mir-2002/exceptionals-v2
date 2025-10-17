@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { usePreferences } from "../context/preferenceContext";
+import { useAuth } from "../context/authContext";
+import { getDocumentationPlan } from "../services/documentationService";
 
 const normalizePath = (p) =>
   (p || "")
@@ -21,8 +23,11 @@ const FinalizePreference = () => {
     isFileIncluded,
     completeStep,
     preferences,
+    getAllItemCounts,
+    getFunctionClassCounts,
   } = usePreferences();
 
+  const { token } = useAuth();
   const navigate = useNavigate();
   const { projectId } = useParams();
 
@@ -30,12 +35,42 @@ const FinalizePreference = () => {
   const initialFormat =
     preferences?.project_settings?.format || preferences?.format || "HTML";
   const [docFormat, setDocFormat] = useState(initialFormat);
+  const [documentationPlan, setDocumentationPlan] = useState(null);
+  const [planLoading, setPlanLoading] = useState(false);
 
   // Keep local state synced if preferences refetched/changed
   useEffect(() => {
     const newFmt = preferences?.project_settings?.format || preferences?.format;
     if (newFmt && newFmt !== docFormat) setDocFormat(newFmt);
-  }, [preferences?.project_settings?.format, preferences?.format]);
+  }, [preferences?.project_settings?.format, preferences?.format, docFormat]);
+
+  useEffect(() => {
+    console.log("Preferences changed, reloading plan:", preferences); // Debug log
+    loadDocumentationPlan();
+  }, [
+    projectId,
+    token,
+    preferences?.directory_exclusion,
+    preferences?.per_file_exclusion,
+    preferences?.format,
+    docFormat,
+  ]);
+
+  // Load documentation plan
+  const loadDocumentationPlan = async () => {
+    if (!projectId || !token) return;
+    setPlanLoading(true);
+    try {
+      const plan = await getDocumentationPlan(projectId, token);
+      setDocumentationPlan(plan);
+      console.log("Documentation plan loaded:", plan); // Debug log
+    } catch (error) {
+      console.error("Failed to load documentation plan:", error);
+      setDocumentationPlan(null);
+    } finally {
+      setPlanLoading(false);
+    }
+  };
 
   // Build quick lookup map for exclusions (skip blank filenames)
   const perFileMap = {};
@@ -51,8 +86,56 @@ const FinalizePreference = () => {
         exclude_classes: Array.isArray(e.exclude_classes)
           ? e.exclude_classes
           : [],
+        exclude_methods: Array.isArray(e.exclude_methods)
+          ? e.exclude_methods
+          : [],
       };
     });
+
+  // Render documentation plan summary
+  const renderPlanSummary = () => {
+    if (planLoading) {
+      return (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="text-blue-600">📋 Loading documentation plan...</div>
+        </div>
+      );
+    }
+
+    if (!documentationPlan) {
+      return (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="text-yellow-700">
+            ⚠️ Could not load documentation plan
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h4 className="font-semibold text-blue-800 mb-2">
+          📋 Documentation Plan
+        </h4>
+        <div className="text-sm space-y-1">
+          <p>
+            <strong>Format:</strong> {documentationPlan.format}
+          </p>
+          <p>
+            <strong>Total Items:</strong> {documentationPlan.total_items}
+          </p>
+          <p>
+            <strong>Included Files:</strong>{" "}
+            {documentationPlan.included_files?.length || 0}
+          </p>
+          <p>
+            <strong>Excluded Files:</strong>{" "}
+            {documentationPlan.excluded_files?.length || 0}
+          </p>{" "}
+        </div>
+      </div>
+    );
+  };
 
   // Render file tree
   const renderFileTree = (node, depth = 0, parentPath = "") => {
@@ -162,6 +245,7 @@ const FinalizePreference = () => {
               const excluded = perFileMap[file.path] || {
                 exclude_functions: [],
                 exclude_classes: [],
+                exclude_methods: [],
               };
               return (
                 <div
@@ -205,7 +289,7 @@ const FinalizePreference = () => {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="mb-2">
                     <span className="font-semibold">Classes:</span>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {(file.classes || []).map((cls) => {
@@ -232,6 +316,44 @@ const FinalizePreference = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Methods Section */}
+                  <div>
+                    <span className="font-semibold">Methods:</span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(file.classes || []).flatMap((cls) =>
+                        (cls.methods || []).map((method) => {
+                          const isClassExcluded =
+                            excluded.exclude_classes.includes(cls.name);
+                          const isMethodExcluded =
+                            excluded.exclude_methods.includes(method.name);
+                          const isExcluded =
+                            isClassExcluded || isMethodExcluded;
+
+                          return (
+                            <span
+                              key={`${cls.name}.${method.name}`}
+                              className={`px-2 py-1 rounded border text-xs font-mono ${
+                                isExcluded
+                                  ? "bg-gray-100 border-gray-300 text-gray-400 line-through"
+                                  : "bg-purple-50 border-purple-300 text-purple-800"
+                              }`}
+                              title={`${cls.name}.${method.name}`}
+                            >
+                              {cls.name}.{method.name}
+                            </span>
+                          );
+                        })
+                      )}
+                      {(file.classes || []).every(
+                        (cls) => !cls.methods || cls.methods.length === 0
+                      ) && (
+                        <span className="text-gray-400 text-xs">
+                          No methods
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -240,7 +362,10 @@ const FinalizePreference = () => {
 
       {/* Format + Actions */}
       <div className="w-[300px] border rounded-lg shadow bg-white p-6 flex flex-col">
-        <h3 className="text-lg font-bold mb-4">Documentation Format</h3>
+        <h3 className="text-lg font-bold mb-4">Documentation Settings</h3>{" "}
+        {/* Documentation Plan Summary - Moved here */}
+        {renderPlanSummary()}
+        <h4 className="text-md font-semibold mb-3">Format Selection</h4>
         <div className="flex flex-col gap-4 mb-8">
           {["HTML", "PDF", "Markdown"].map((fmt) => (
             <label key={fmt} className="flex items-center gap-2 cursor-pointer">

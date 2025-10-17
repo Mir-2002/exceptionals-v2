@@ -112,13 +112,14 @@ export const PreferenceProvider = ({ children }) => {
     },
     [preferences?.per_file_exclusion]
   );
-
   const getFunctionClassCounts = useCallback(() => {
     const included = getIncludedFilesData();
     let totalFunctions = 0;
     let totalClasses = 0;
+    let totalMethods = 0;
     let includedFunctions = 0;
     let includedClasses = 0;
+    let includedMethods = 0;
 
     included.forEach((f) => {
       const funcs = f.functions || [];
@@ -126,9 +127,16 @@ export const PreferenceProvider = ({ children }) => {
       totalFunctions += funcs.length;
       totalClasses += classes.length;
 
+      // Count methods from classes
+      classes.forEach((cls) => {
+        const methods = cls.methods || [];
+        totalMethods += methods.length;
+      });
+
       const entry = getPerFileEntry(f);
       const excludedFns = entry?.exclude_functions || [];
       const excludedCls = entry?.exclude_classes || [];
+      const excludedMethods = entry?.exclude_methods || [];
 
       includedFunctions += funcs.filter(
         (fn) => !excludedFns.includes(fn.name)
@@ -136,12 +144,118 @@ export const PreferenceProvider = ({ children }) => {
       includedClasses += classes.filter(
         (cls) => !excludedCls.includes(cls.name)
       ).length;
+
+      // Count included methods
+      classes.forEach((cls) => {
+        if (!excludedCls.includes(cls.name)) {
+          const methods = cls.methods || [];
+          includedMethods += methods.filter(
+            (method) => !excludedMethods.includes(method.name)
+          ).length;
+        }
+      });
     });
 
-    return { totalFunctions, totalClasses, includedFunctions, includedClasses };
+    return {
+      totalFunctions,
+      totalClasses,
+      totalMethods,
+      includedFunctions,
+      includedClasses,
+      includedMethods,
+      excludedFunctions: totalFunctions - includedFunctions,
+      excludedClasses: totalClasses - includedClasses,
+      excludedMethods: totalMethods - includedMethods,
+    };
   }, [getIncludedFilesData, getPerFileEntry]);
 
-  // Only called on save, not on load
+  // Get comprehensive counts for all items
+  const getAllItemCounts = useCallback(() => {
+    const totalFiles = allFilesData.length;
+    const includedFiles = getIncludedFilesData();
+    const excludedFiles = totalFiles - includedFiles.length;
+
+    const functionClassCounts = getFunctionClassCounts();
+
+    const totalItems =
+      totalFiles +
+      functionClassCounts.totalFunctions +
+      functionClassCounts.totalClasses +
+      functionClassCounts.totalMethods;
+    const includedItems =
+      includedFiles.length +
+      functionClassCounts.includedFunctions +
+      functionClassCounts.includedClasses +
+      functionClassCounts.includedMethods;
+    const excludedItems = totalItems - includedItems;
+
+    return {
+      files: {
+        total: totalFiles,
+        included: includedFiles.length,
+        excluded: excludedFiles,
+      },
+      functions: {
+        total: functionClassCounts.totalFunctions,
+        included: functionClassCounts.includedFunctions,
+        excluded: functionClassCounts.excludedFunctions,
+      },
+      classes: {
+        total: functionClassCounts.totalClasses,
+        included: functionClassCounts.includedClasses,
+        excluded: functionClassCounts.excludedClasses,
+      },
+      methods: {
+        total: functionClassCounts.totalMethods,
+        included: functionClassCounts.includedMethods,
+        excluded: functionClassCounts.excludedMethods,
+      },
+      overall: {
+        total: totalItems,
+        included: includedItems,
+        excluded: excludedItems,
+      },
+    };
+  }, [allFilesData, getIncludedFilesData, getFunctionClassCounts]);
+
+  // Reset function/class exclusions when file preferences change
+  const resetPerFileExclusionsForChangedFiles = useCallback(
+    (newDirectoryExclusion) => {
+      const newExcludeFiles = (newDirectoryExclusion?.exclude_files || []).map(
+        normalizePath
+      );
+      const newExcludeDirs = (newDirectoryExclusion?.exclude_dirs || []).map(
+        normalizePath
+      );
+      const oldExcludeFiles = (
+        preferences?.directory_exclusion?.exclude_files || []
+      ).map(normalizePath);
+      const oldExcludeDirs = (
+        preferences?.directory_exclusion?.exclude_dirs || []
+      ).map(normalizePath);
+
+      // Check if directory exclusions changed
+      const filesChanged =
+        JSON.stringify(newExcludeFiles.sort()) !==
+        JSON.stringify(oldExcludeFiles.sort());
+      const dirsChanged =
+        JSON.stringify(newExcludeDirs.sort()) !==
+        JSON.stringify(oldExcludeDirs.sort());
+
+      if (filesChanged || dirsChanged) {
+        // Reset per_file_exclusion to empty array when file inclusion changes
+        setPreferences((prev) => ({
+          ...prev,
+          directory_exclusion: newDirectoryExclusion,
+          per_file_exclusion: [],
+        }));
+        return true; // Indicate that reset occurred
+      }
+      return false;
+    },
+    [preferences?.directory_exclusion]
+  );
+
   const markStepCompleted = useCallback((stepNumber) => {
     setCompletedSteps((prev) => {
       const next = new Set(prev);
@@ -222,7 +336,19 @@ export const PreferenceProvider = ({ children }) => {
 
       let nextPreferences;
 
-      if (stepNumber === 1) {
+      if (stepNumber === 0) {
+        // For directory exclusions, check if we need to reset per-file exclusions
+        const resetOccurred = resetPerFileExclusionsForChangedFiles(stepData);
+        if (resetOccurred) {
+          nextPreferences = {
+            ...preferences,
+            directory_exclusion: stepData,
+            per_file_exclusion: [],
+          };
+        } else {
+          nextPreferences = { ...preferences, [section]: stepData };
+        }
+      } else if (stepNumber === 1) {
         // Ensure clean per_file_exclusion list
         nextPreferences = {
           ...preferences,
@@ -365,6 +491,9 @@ export const PreferenceProvider = ({ children }) => {
     getIncludedFilesData,
     getFilesWithContent,
     getFunctionClassCounts,
+    getAllItemCounts,
+    getPerFileEntry,
+    resetPerFileExclusionsForChangedFiles,
     initializePreferences,
     completeStep,
     setFileTreeData: setFileTree,

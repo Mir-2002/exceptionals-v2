@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/authContext";
 import { usePreferences } from "../context/preferenceContext";
+import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
+import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 const normalizePath = (p) =>
   (p || "")
@@ -31,9 +33,8 @@ const SetFunctionClassPreference = () => {
   } = usePreferences();
 
   const [selectedFileId, setSelectedFileId] = useState(null);
-  const [perFileMap, setPerFileMap] = useState({}); // { normalizedPath: { exclude_functions:[], exclude_classes:[] } }
+  const [perFileMap, setPerFileMap] = useState({});
 
-  // Initialize (fetch preferences + file data) once
   useEffect(() => {
     if (!token) return;
     if (!fileTree || allFilesData.length === 0) {
@@ -41,7 +42,6 @@ const SetFunctionClassPreference = () => {
     }
   }, [projectId, token, initializePreferences, fileTree, allFilesData.length]);
 
-  // Populate local exclusion map from persisted preferences (skip blank filename entries)
   useEffect(() => {
     const list = Array.isArray(preferences?.per_file_exclusion)
       ? preferences.per_file_exclusion
@@ -49,13 +49,16 @@ const SetFunctionClassPreference = () => {
     const map = {};
     list.forEach((e) => {
       const key = normalizePath(e?.filename || "");
-      if (!key) return; // skip invalid
+      if (!key) return;
       map[key] = {
         exclude_functions: Array.isArray(e.exclude_functions)
           ? e.exclude_functions
           : [],
         exclude_classes: Array.isArray(e.exclude_classes)
           ? e.exclude_classes
+          : [],
+        exclude_methods: Array.isArray(e.exclude_methods)
+          ? e.exclude_methods
           : [],
       };
     });
@@ -75,10 +78,10 @@ const SetFunctionClassPreference = () => {
       ),
     [selectedFile]
   );
-
   const excludedForSelected = perFileMap[selectedKey] || {
     exclude_functions: [],
     exclude_classes: [],
+    exclude_methods: [],
   };
 
   const setExcludedForSelected = (updater) => {
@@ -87,26 +90,61 @@ const SetFunctionClassPreference = () => {
       const current = prev[selectedKey] || {
         exclude_functions: [],
         exclude_classes: [],
+        exclude_methods: [],
       };
       const next = updater(current);
       return { ...prev, [selectedKey]: next };
     });
   };
 
-  const handleToggle = (name, exclusionKey) => {
+  const handleToggle = (name, exclusionKey, className = null) => {
     setExcludedForSelected((curr) => {
       const arr = new Set(curr[exclusionKey] || []);
       if (arr.has(name)) arr.delete(name);
       else arr.add(name);
+
+      // If excluding a class, also exclude all its methods
+      if (exclusionKey === "exclude_classes" && className === null) {
+        const cls = selectedFile.classes?.find((c) => c.name === name);
+        if (cls && cls.methods?.length) {
+          const methodArr = new Set(curr["exclude_methods"] || []);
+          if (!arr.has(name)) {
+            cls.methods.forEach((m) => methodArr.delete(m.name));
+          } else {
+            cls.methods.forEach((m) => methodArr.add(m.name));
+          }
+          return {
+            ...curr,
+            [exclusionKey]: Array.from(arr),
+            exclude_methods: Array.from(methodArr),
+          };
+        }
+      }
+
       return { ...curr, [exclusionKey]: Array.from(arr) };
     });
   };
 
   const handleBulkToggle = (file, type, shouldExclude) => {
-    // type: "functions" or "classes"
-    const names = (file[type] || []).map((i) => i.name);
-    const exclusionKey =
-      type === "functions" ? "exclude_functions" : "exclude_classes";
+    let names = [];
+    let exclusionKey = "";
+
+    if (type === "functions") {
+      names = (file.functions || []).map((i) => i.name);
+      exclusionKey = "exclude_functions";
+    } else if (type === "classes") {
+      names = (file.classes || []).map((i) => i.name);
+      exclusionKey = "exclude_classes";
+    } else if (type === "methods") {
+      names = [];
+      (file.classes || []).forEach((cls) => {
+        (cls.methods || []).forEach((method) => {
+          names.push(method.name);
+        });
+      });
+      exclusionKey = "exclude_methods";
+    }
+
     setExcludedForSelected((curr) => {
       const base = new Set(curr[exclusionKey] || []);
       if (shouldExclude) names.forEach((n) => base.add(n));
@@ -119,18 +157,19 @@ const SetFunctionClassPreference = () => {
     if (!selectedKey) return;
     setPerFileMap((prev) => ({
       ...prev,
-      [selectedKey]: { exclude_functions: [], exclude_classes: [] },
+      [selectedKey]: {
+        exclude_functions: [],
+        exclude_classes: [],
+        exclude_methods: [],
+      },
     }));
   };
 
-  // Build payload and save (Step 1)
   const handleSave = async () => {
-    // Convert map -> array, resolve filename against authoritative file list
     const per_file_exclusion = Object.entries(perFileMap)
       .map(([key, val]) => {
         const normalizedKey = normalizePath(key);
         if (!normalizedKey) return null;
-        // try to find file object
         const fileObj = allFilesData.find(
           (f) =>
             normalizePath(f.path || f.name || f.filename || "") ===
@@ -140,21 +179,28 @@ const SetFunctionClassPreference = () => {
           fileObj?.path || fileObj?.name || fileObj?.filename || normalizedKey
         );
         if (!filename) return null;
-
         const exclude_functions = Array.isArray(val.exclude_functions)
           ? val.exclude_functions.filter(Boolean)
           : [];
         const exclude_classes = Array.isArray(val.exclude_classes)
           ? val.exclude_classes.filter(Boolean)
           : [];
+        const exclude_methods = Array.isArray(val.exclude_methods)
+          ? val.exclude_methods.filter(Boolean)
+          : [];
 
-        if (exclude_functions.length === 0 && exclude_classes.length === 0)
+        if (
+          exclude_functions.length === 0 &&
+          exclude_classes.length === 0 &&
+          exclude_methods.length === 0
+        )
           return null;
 
         return {
           filename,
           exclude_functions,
           exclude_classes,
+          exclude_methods,
         };
       })
       .filter(Boolean);
@@ -166,7 +212,6 @@ const SetFunctionClassPreference = () => {
     else alert("Failed to save preferences. Please try again.");
   };
 
-  // Prunes empty dirs & excluded items; only shows files with functions/classes
   const renderFileTree = useCallback(
     (node, depth = 0, parentPath = "") => {
       if (!node) return null;
@@ -326,13 +371,29 @@ const SetFunctionClassPreference = () => {
                           {func.name}
                         </span>
                       </label>
+                      {/* Function code */}
+                      {func.code && (
+                        <SyntaxHighlighter
+                          language="python"
+                          style={docco}
+                          customStyle={{
+                            fontSize: "0.9em",
+                            borderRadius: "0.5em",
+                            marginTop: "0.5em",
+                          }}
+                          wrapLines={true}
+                          wrapLongLines={true}
+                        >
+                          {func.code}
+                        </SyntaxHighlighter>
+                      )}
                     </div>
                   );
                 })}
               </div>
             )}
 
-            {/* Classes */}
+            {/* Classes (with methods directly under each class) */}
             {selectedFile.classes?.length > 0 && (
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -381,6 +442,81 @@ const SetFunctionClassPreference = () => {
                           {cls.name}
                         </span>
                       </label>
+                      {/* Class code */}
+                      {cls.code && (
+                        <SyntaxHighlighter
+                          language="python"
+                          style={docco}
+                          customStyle={{
+                            fontSize: "0.9em",
+                            borderRadius: "0.5em",
+                            marginTop: "0.5em",
+                          }}
+                          wrapLines={true}
+                          wrapLongLines={true}
+                        >
+                          {cls.code}
+                        </SyntaxHighlighter>
+                      )}
+                      {/* Methods for this class */}
+                      {cls.methods?.length > 0 && (
+                        <div className="ml-6 mt-2">
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">
+                            Methods:
+                          </h5>
+                          {cls.methods.map((method) => {
+                            const excludedMethod =
+                              excludedForSelected.exclude_methods.includes(
+                                method.name
+                              );
+                            return (
+                              <div
+                                key={`${cls.name}.${method.name}`}
+                                className="border rounded p-2 mb-2 bg-gray-50"
+                              >
+                                <label className="flex items-center gap-2 font-mono">
+                                  <input
+                                    type="checkbox"
+                                    checked={!excludedMethod}
+                                    onChange={() =>
+                                      handleToggle(
+                                        method.name,
+                                        "exclude_methods",
+                                        cls.name
+                                      )
+                                    }
+                                  />
+                                  <span
+                                    className={
+                                      excludedMethod
+                                        ? "line-through text-gray-400"
+                                        : ""
+                                    }
+                                  >
+                                    {method.name}
+                                  </span>
+                                </label>
+                                {/* Method code */}
+                                {method.code && (
+                                  <SyntaxHighlighter
+                                    language="python"
+                                    style={docco}
+                                    customStyle={{
+                                      fontSize: "0.9em",
+                                      borderRadius: "0.5em",
+                                      marginTop: "0.5em",
+                                    }}
+                                    wrapLines={true}
+                                    wrapLongLines={true}
+                                  >
+                                    {method.code}
+                                  </SyntaxHighlighter>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
