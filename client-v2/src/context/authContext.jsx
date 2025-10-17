@@ -2,8 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 
 const AuthContext = createContext();
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"; // Remove /api
-
+const API_URL = import.meta.env.VITE_API_URL;
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -30,7 +29,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     try {
       const payload = { username, password };
-      const { data } = await axios.post(API_URL + "/api/auth/login", payload, {
+      const { data } = await axios.post(API_URL + "/auth/login", payload, {
         headers: { "Content-Type": "application/json" },
       });
       setToken(data.access_token);
@@ -46,13 +45,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password) => {
     try {
       const payload = { username, email, password };
-      const { data } = await axios.post(
-        API_URL + "/api/auth/register",
-        payload,
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      const { data } = await axios.post(API_URL + "/auth/register", payload, {
+        headers: { "Content-Type": "application/json" },
+      });
       setToken(data.access_token);
       localStorage.setItem("token", data.access_token);
       await getCurrentUser(data.access_token);
@@ -65,7 +60,7 @@ export const AuthProvider = ({ children }) => {
   // Get current user
   const getCurrentUser = async (authToken = token) => {
     try {
-      const { data } = await axios.get(API_URL + "/api/auth/me", {
+      const { data } = await axios.get(API_URL + "/auth/me", {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       setUser(data);

@@ -1,16 +1,17 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { AuthProvider } from "./context/authContext";
 import { PreferenceProvider } from "./context/preferenceContext";
 import Dashboard from "./pages/Dashboard";
 import Layout from "./components/Layout";
-import CreateProject from "./components/CreateProject";
-import ProjectDetails from "./components/ProjectDetails";
-import SetPreferences from "./components/SetPreferences";
-import SetFilePreferences from "./components/SetFilePreferences";
-import SetFunctionClassPreference from "./components/SetFunctionClassPreference";
-import FinalizePreference from "./components/FinalizePreference";
+import CreateProject from "./pages/CreateProject";
+import ProjectDetails from "./pages/ProjectDetails";
+import SetPreferences from "./pages/SetPreferences";
+import SetFilePreferences from "./pages/SetFilePreferences";
+import SetFunctionClassPreference from "./pages/SetFunctionClassPreference";
+import FinalizePreference from "./pages/FinalizePreference";
 
 function App() {
   return (
@@ -46,6 +47,31 @@ function App() {
               />
             </Route>
           </Routes>
+          {/* Toast notifications */}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: "#363636",
+                color: "#fff",
+              },
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: "#10b981",
+                  secondary: "#fff",
+                },
+              },
+              error: {
+                duration: 5000,
+                iconTheme: {
+                  primary: "#ef4444",
+                  secondary: "#fff",
+                },
+              },
+            }}
+          />
         </PreferenceProvider>
       </AuthProvider>
     </BrowserRouter>

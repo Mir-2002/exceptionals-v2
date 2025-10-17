@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Form from "../components/Form";
 import { useAuth } from "../context/authContext";
 import { useNavigate } from "react-router-dom";
+import { showSuccess, showError } from "../utils/toast";
 
 const Login = () => {
   const { login } = useAuth();
@@ -12,11 +13,13 @@ const Login = () => {
     setError(""); // Clear previous errors
     try {
       await login(values.username, values.password);
+      showSuccess("Login successful! Welcome back.");
       navigate("/dashboard");
     } catch (err) {
-      setError(
-        err?.response?.data?.message || "Login failed. Please try again."
-      );
+      const errorMessage =
+        err?.response?.data?.message || "Login failed. Please try again.";
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
   return (

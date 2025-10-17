@@ -1,24 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getFile } from "../services/fileService";
 import { useAuth } from "../context/authContext";
 import { usePreferences } from "../context/preferenceContext";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { Button, Card, LoadingSpinner, StatsCard } from "../components/ui";
+import { normalizePath, getNodePath } from "../utils/pathUtils";
+import { showSuccess, showError } from "../utils/toast";
 
 const DEFAULT_EXCLUDE_FILES = ["__init__.py", "setup.py"];
 const DEFAULT_EXCLUDE_DIRS = ["venv", "__pycache__"];
-
-const normalizePath = (p) =>
-  (p || "")
-    .replace(/\\/g, "/")
-    .replace(/^\.\/+/, "")
-    .replace(/^\/+/, "");
-
-const getNodePath = (node, parentPath = "") =>
-  normalizePath(
-    node?.path || (parentPath ? `${parentPath}/${node.name}` : node?.name || "")
-  );
 
 const SetFilePreferences = () => {
   const { projectId } = useParams();
@@ -30,6 +22,7 @@ const SetFilePreferences = () => {
     completeStep,
     loading: prefsLoading,
     fileTree,
+    allFilesData,
     initializePreferences,
   } = usePreferences();
 
@@ -58,7 +51,8 @@ const SetFilePreferences = () => {
       setLoading(false);
     };
     load();
-  }, [projectId, token, initializePreferences]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, token]);
 
   useEffect(() => {
     setExcludedFiles((filePreferences?.exclude_files || []).map(normalizePath));
@@ -153,7 +147,7 @@ const SetFilePreferences = () => {
       setFileContent(code);
       setShowFileBox(true);
     } catch (err) {
-      alert("Failed to fetch file content.");
+      showError("Failed to fetch file content. Please try again.");
     }
   };
 
@@ -259,10 +253,10 @@ const SetFilePreferences = () => {
       exclude_dirs: excludedDirs,
     });
     if (success) {
-      alert("File preferences saved successfully!");
+      showSuccess("File preferences saved successfully!");
       navigate(`/projects/${projectId}/preferences`);
     } else {
-      alert("Failed to save preferences. Please try again.");
+      showError("Failed to save preferences. Please try again.");
     }
   };
 
@@ -292,6 +286,24 @@ const SetFilePreferences = () => {
     setExcludedDirs([]);
   };
 
+  // Calculate included files count based on local state
+  const getLocalIncludedFilesCount = useCallback(() => {
+    if (!fileTree) return 0;
+    const countIncluded = (node, parentPath = "") => {
+      const path = getNodePath(node, parentPath);
+      if (isFolder(node)) {
+        if (excludedDirs.includes(path)) return 0;
+        return (node.children || []).reduce(
+          (sum, child) => sum + countIncluded(child, path),
+          0
+        );
+      } else {
+        return excludedFiles.includes(path) ? 0 : 1;
+      }
+    };
+    return countIncluded(fileTree);
+  }, [fileTree, excludedFiles, excludedDirs]);
+
   return (
     <div className="flex flex-row gap-8 w-full max-w-none mx-auto mt-10 px-4 overflow-x-hidden justify-center">
       {/* Main Preferences Box */}
@@ -301,24 +313,20 @@ const SetFilePreferences = () => {
           Uncheck files or folders you want to exclude from documentation.
           Everything is included by default.
         </p>
-
         <div className="flex gap-2 mb-4">
-          <button
-            className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
+          <Button
+            variant="ghost"
+            className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
             onClick={applyDefault}
           >
             Apply Default Exclusions
-          </button>
-          <button
-            className="px-4 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200"
-            onClick={handleReset}
-          >
+          </Button>
+          <Button variant="outline" onClick={handleReset}>
             Reset Preferences
-          </button>
+          </Button>
         </div>
-
         {prefsLoading || loading ? (
-          <div>Loading file tree...</div>
+          <LoadingSpinner text="Loading file tree..." />
         ) : fileTree ? (
           <div className="border rounded p-4 max-h-96 overflow-auto">
             {renderTree(fileTree)}
@@ -326,21 +334,20 @@ const SetFilePreferences = () => {
         ) : (
           <div className="text-gray-500">No files found.</div>
         )}
-
         <div className="flex justify-between items-center mt-6">
-          <button
-            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+          <Button
+            variant="secondary"
             onClick={() => navigate(`/projects/${projectId}/preferences`)}
           >
             Back to Overview
-          </button>
-          <button
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          </Button>
+          <Button
+            variant="primary"
             onClick={handleSave}
             disabled={prefsLoading}
           >
             {prefsLoading ? "Saving..." : "Save & Continue"}
-          </button>
+          </Button>
         </div>
       </div>
 

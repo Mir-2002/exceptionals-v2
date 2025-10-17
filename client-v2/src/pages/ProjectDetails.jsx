@@ -12,6 +12,8 @@ import {
 } from "../services/fileService";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { Button, Card, LoadingSpinner } from "../components/ui";
+import { showSuccess, showError, showWarning } from "../utils/toast";
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -66,16 +68,16 @@ const ProjectDetails = () => {
     fetchFileTree();
     // eslint-disable-next-line
   }, [projectId, token]);
-
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this project?"))
       return;
     setDeleting(true);
     try {
       await deleteProject(projectId, token);
+      showSuccess("Project deleted successfully!");
       navigate("/dashboard");
     } catch (err) {
-      alert("Failed to delete project.");
+      showError("Failed to delete project. Please try again.");
     } finally {
       setDeleting(false);
     }
@@ -84,7 +86,6 @@ const ProjectDetails = () => {
   const handleFileChange = (e) => {
     setFiles(Array.from(e.target.files));
   };
-
   const handleUpload = async () => {
     if (files.length === 0) return;
     setUploading(true);
@@ -100,12 +101,12 @@ const ProjectDetails = () => {
       } else {
         await uploadProjectFiles(projectId, files, token);
       }
-      alert("Files uploaded successfully!");
+      showSuccess("Files uploaded successfully!");
       setFiles([]);
       fetchProject();
       fetchFileTree();
     } catch (err) {
-      alert("Failed to upload files.");
+      showError("Failed to upload files. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -126,12 +127,11 @@ const ProjectDetails = () => {
     }
     return ids;
   };
-
   const handleDeleteNode = async (node, parentPath = "") => {
     if (node.children) {
       const fileIds = collectFileIds(node);
       if (fileIds.length === 0) {
-        alert("This folder does not contain any files to delete.");
+        showWarning("This folder does not contain any files to delete.");
         return;
       }
       if (
@@ -149,12 +149,15 @@ const ProjectDetails = () => {
         setFileContent("");
         setViewingFileName("");
         setShowFileBox(false);
+        showSuccess(
+          `Folder "${node.name}" and all its files deleted successfully!`
+        );
       } catch (err) {
-        alert("Failed to delete folder and its files.");
+        showError("Failed to delete folder and its files.");
       }
     } else {
       if (!node.id) {
-        alert("Cannot delete: file node missing id.");
+        showError("Cannot delete: file node missing id.");
         return;
       }
       if (!window.confirm(`Delete file "${node.name}"? This cannot be undone.`))
@@ -166,8 +169,9 @@ const ProjectDetails = () => {
         setFileContent("");
         setViewingFileName("");
         setShowFileBox(false);
+        showSuccess(`File "${node.name}" deleted successfully!`);
       } catch (err) {
-        alert("Failed to delete file.");
+        showError("Failed to delete file.");
       }
     }
   };
@@ -183,7 +187,6 @@ const ProjectDetails = () => {
       return newSet;
     });
   };
-
   const handleViewFile = async (node) => {
     if (!node.id) return;
     try {
@@ -203,7 +206,7 @@ const ProjectDetails = () => {
       setFileContent(code);
       setShowFileBox(true);
     } catch (err) {
-      alert("Failed to fetch file content.");
+      showError("Failed to fetch file content.");
     }
   };
 

@@ -5,6 +5,12 @@ import {
   createPreferences,
 } from "../services/preferenceService";
 import { getAllFiles, getFileTree } from "../services/fileService";
+import {
+  normalizePath,
+  basename,
+  pathLikeEquals,
+  isSubpath,
+} from "../utils/pathUtils";
 
 const PreferenceContext = createContext();
 
@@ -32,13 +38,7 @@ export const PreferenceProvider = ({ children }) => {
   // Project info
   const [projectId, setProjectId] = useState(null);
   const [token, setToken] = useState(null);
-
-  // Helpers
-  const normalizePath = (p) =>
-    (p || "")
-      .replace(/\\/g, "/")
-      .replace(/^\.\/+/, "")
-      .replace(/^\/+/, "");
+  // Note: normalizePath and other path utilities are now imported from ../utils/pathUtils
 
   // Filter invalid per-file exclusion entries (empty filename, no exclusions)
   const sanitizePerFileList = (list) =>
@@ -63,24 +63,32 @@ export const PreferenceProvider = ({ children }) => {
             e.exclude_classes.length > 0 ||
             e.exclude_methods.length > 0)
       );
-
-  // Path-based exclusion
+  // Path-based exclusion with robust matching
   const isFileIncluded = useCallback(
     (fileName, filePath = "") => {
       const { exclude_files = [], exclude_dirs = [] } =
         preferences?.directory_exclusion || {};
 
-      const normalizedPath = normalizePath(filePath || fileName);
+      const normalizedPath = normalizePath(filePath || fileName || "");
       const exclFiles = (exclude_files || []).map(normalizePath);
       const exclDirs = (exclude_dirs || []).map(normalizePath);
 
-      if (exclFiles.includes(normalizedPath)) return false;
-
-      const parts = normalizedPath.split("/").filter(Boolean);
-      for (let i = 1; i <= parts.length; i++) {
-        const parentPath = parts.slice(0, i).join("/");
-        if (exclDirs.includes(parentPath)) return false;
+      // Direct file exclusion: exact/suffix or base-name match
+      if (
+        exclFiles.some(
+          (ef) =>
+            pathLikeEquals(normalizedPath, ef) ||
+            basename(ef) === basename(normalizedPath)
+        )
+      ) {
+        return false;
       }
+
+      // Directory exclusion: any parent is excluded
+      for (const ed of exclDirs) {
+        if (isSubpath(normalizedPath, ed)) return false;
+      }
+
       return true;
     },
     [preferences?.directory_exclusion]
@@ -101,14 +109,16 @@ export const PreferenceProvider = ({ children }) => {
       (f) => (f.functions?.length || 0) > 0 || (f.classes?.length || 0) > 0
     );
   }, [getIncludedFilesData]);
-
   const getPerFileEntry = useCallback(
     (file) => {
-      const keyPath = normalizePath(file?.path || "");
+      const keyPath = normalizePath(file?.path || file?.name || "");
       const list = preferences?.per_file_exclusion || [];
+
+      // Use robust matching, not strict equality.
+      // This finds the entry even if path prefixes are different.
       return (
-        list.find((e) => normalizePath(e.filename) === keyPath) ||
-        list.find((e) => e.filename === file?.name)
+        list.find((e) => pathLikeEquals(e?.filename, keyPath)) ||
+        list.find((e) => basename(e?.filename) === basename(keyPath))
       );
     },
     [preferences?.per_file_exclusion]

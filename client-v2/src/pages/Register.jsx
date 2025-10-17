@@ -2,23 +2,30 @@ import React, { useState } from "react";
 import Form from "../components/Form";
 import { useAuth } from "../context/authContext";
 import { useNavigate } from "react-router-dom";
+import { showSuccess, showError } from "../utils/toast";
 
 const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
-
   const handleRegister = async (values) => {
     setError("");
     if (values.password !== values.confirmPassword) {
       setError("Passwords do not match.");
+      showError("Passwords do not match.");
       return;
     }
     try {
       await register(values.Username, values.email, values.password);
+      showSuccess("Registration successful! Please log in.");
       navigate("/login");
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || "");
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Registration failed. Please try again.";
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
   return (
