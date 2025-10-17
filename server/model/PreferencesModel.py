@@ -16,6 +16,7 @@ class Preferences(BaseModel):
     per_file_exclusion: Optional[list[PerFileExclusion]] = None
     directory_exclusion: Optional[DirectoryExclusion] = None
     format: Optional[str] = "markdown"
+    current_Step: Optional[int] = 1
 
     model_config = {
         "json_schema_extra" : {

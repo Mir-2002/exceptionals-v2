@@ -9,12 +9,13 @@ import { getAllFiles, getFileTree } from "../services/fileService";
 const PreferenceContext = createContext();
 
 export const PreferenceProvider = ({ children }) => {
-  // Core State (add root-level format for backend compatibility)
+  // Core State
   const [preferences, setPreferences] = useState({
     directory_exclusion: { exclude_files: [], exclude_dirs: [] },
     per_file_exclusion: [],
     project_settings: {},
     format: undefined,
+    current_Step: 0,
   });
   const [allFilesData, setAllFilesData] = useState([]);
   const [fileTree, setFileTree] = useState(null);
@@ -293,9 +294,11 @@ export const PreferenceProvider = ({ children }) => {
           per_file_exclusion: sanitizePerFileList(prefs?.per_file_exclusion),
           project_settings: prefs?.project_settings || {},
           format: prefs?.format || prefs?.project_settings?.format || "HTML",
+          current_Step: prefs?.current_Step ?? 0,
         };
 
         setPreferences(safePrefs);
+        setCurrentStep(safePrefs.current_Step || 0); // <-- sync from backend
         setAllFilesData(files || []);
         setFileTree(tree || null);
       } catch (err) {
@@ -304,7 +307,9 @@ export const PreferenceProvider = ({ children }) => {
           per_file_exclusion: [],
           project_settings: {},
           format: "HTML",
+          current_Step: 0,
         });
+        setCurrentStep(0);
         setAllFilesData([]);
         setFileTree(null);
         resetCompletedSteps();
@@ -344,15 +349,21 @@ export const PreferenceProvider = ({ children }) => {
             ...preferences,
             directory_exclusion: stepData,
             per_file_exclusion: [],
+            current_Step: stepNumber,
           };
         } else {
-          nextPreferences = { ...preferences, [section]: stepData };
+          nextPreferences = {
+            ...preferences,
+            [section]: stepData,
+            current_Step: stepNumber,
+          };
         }
       } else if (stepNumber === 1) {
         // Ensure clean per_file_exclusion list
         nextPreferences = {
           ...preferences,
           per_file_exclusion: sanitizePerFileList(stepData),
+          current_Step: stepNumber,
         };
       } else if (stepNumber === 2) {
         // Persist format both root-level and project_settings
@@ -369,9 +380,14 @@ export const PreferenceProvider = ({ children }) => {
             format: fmt,
           },
           format: fmt,
+          current_Step: stepNumber,
         };
       } else {
-        nextPreferences = { ...preferences, [section]: stepData };
+        nextPreferences = {
+          ...preferences,
+          [section]: stepData,
+          current_Step: stepNumber,
+        };
       }
 
       setLoading(true);
@@ -404,9 +420,11 @@ export const PreferenceProvider = ({ children }) => {
             authoritative?.project_settings?.format ||
             nextPreferences.format ||
             "HTML",
+          current_Step: authoritative?.current_Step ?? stepNumber,
         };
 
         setPreferences(merged);
+        setCurrentStep(merged.current_Step || stepNumber);
         markStepCompleted(stepNumber);
         return true;
       } catch (err) {
@@ -416,7 +434,14 @@ export const PreferenceProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [projectId, token, preferences, markStepCompleted]
+    [
+      projectId,
+      token,
+      preferences,
+      markStepCompleted,
+      resetPerFileExclusionsForChangedFiles,
+      sanitizePerFileList,
+    ]
   );
 
   // Reset
@@ -430,9 +455,11 @@ export const PreferenceProvider = ({ children }) => {
         per_file_exclusion: [],
         project_settings: {},
         format: "HTML",
+        current_Step: 0,
       };
       await updatePreferences(projectId, emptyPrefs, token);
       setPreferences(emptyPrefs);
+      setCurrentStep(0);
       resetCompletedSteps();
       return true;
     } catch {
@@ -481,6 +508,7 @@ export const PreferenceProvider = ({ children }) => {
     allFilesData,
     completedSteps,
     currentStep,
+    setCurrentStep,
     filePreferences: preferences.directory_exclusion,
     perFileExclusion: preferences.per_file_exclusion,
     projectSettings: preferences.project_settings,

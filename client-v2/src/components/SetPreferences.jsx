@@ -18,7 +18,9 @@ const SetPreferences = () => {
     allFilesData,
     getIncludedFilesCount,
     getFunctionClassCounts,
-    resetAllPreferences, // <-- added
+    resetAllPreferences,
+    currentStep,
+    setCurrentStep,
   } = usePreferences();
 
   useEffect(() => {
@@ -35,7 +37,10 @@ const SetPreferences = () => {
   };
 
   const handleStepClick = (stepNumber, route) => {
-    if (isStepAccessible(stepNumber)) navigate(route);
+    if (isStepAccessible(stepNumber)) {
+      setCurrentStep(stepNumber); // <-- update context step
+      navigate(route);
+    }
   };
 
   const handleResetAll = async () => {
