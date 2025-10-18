@@ -1,9 +1,11 @@
+from datetime import datetime
 from fastapi import Depends, File, UploadFile, HTTPException
 from bson import ObjectId
 from model.FileModel import FileResponse
 from controller.ProjectController import calculate_project_status
 from utils.build_tree import build_file_tree
 from utils.db import get_db
+from utils.timestamp_helper import update_project_timestamp
 from utils.parser import extract_functions_classes_from_content, extract_py_files_from_zip
 
 async def upload_file(project_id: str, file: UploadFile = File(...), db=Depends(get_db)):
@@ -25,10 +27,10 @@ async def upload_file(project_id: str, file: UploadFile = File(...), db=Depends(
             # 2. Calculate the new status using the function from ProjectController
             new_status = calculate_project_status(all_project_files)
             
-            # 3. Update the project document with the new status
+            # 3. Update the project document with the new status and timestamp
             await db.projects.update_one(
                 {"_id": ObjectId(project_id)},
-                {"$set": {"status": new_status}}
+                {"$set": {"status": new_status, "updated_at": datetime.now()}}
             )
         except Exception as e:
             # Optional: Log this error, but don't fail the whole upload because of it
@@ -53,7 +55,7 @@ async def upload_project_zip(project_id: str, zip_file: UploadFile = File(...), 
             new_status = calculate_project_status(all_project_files)
             await db.projects.update_one(
                 {"_id": ObjectId(project_id)},
-                {"$set": {"status": new_status}}
+                {"$set": {"status": new_status, "updated_at": datetime.now()}}
             )
         except Exception as e:
             print(f"Warning: Could not update project status for {project_id} after zip upload. Error: {e}")
@@ -97,10 +99,12 @@ async def delete_file(project_id: str, file_id: str, db=Depends(get_db)):
     Deletes a file by its ID.
     """
     file_id = ObjectId(file_id)
-    result = await db.files.delete_one({"_id": file_id, "project_id": project_id})
-    
+    result = await db.files.delete_one({"_id": file_id, "project_id": project_id})    
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="File not found")
+    
+    # Update project timestamp after file deletion
+    await update_project_timestamp(project_id, db)
     
     return {"detail": "File deleted successfully"}
 
@@ -108,9 +112,11 @@ async def delete_project_files(project_id: str, db=Depends(get_db)):
     """
     Deletes all files associated with a project.
     """
-    result = await db.files.delete_many({"project_id": project_id})
-    
+    result = await db.files.delete_many({"project_id": project_id})    
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="No files found for this project")
+    
+    # Update project timestamp after files deletion
+    await update_project_timestamp(project_id, db)
     
     return {"detail": f"{result.deleted_count} files deleted successfully"}

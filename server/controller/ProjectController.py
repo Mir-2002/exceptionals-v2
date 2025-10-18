@@ -1,7 +1,9 @@
 from typing import List
+from datetime import datetime
 from fastapi import Depends, HTTPException
 from model.ProjectModel import FileProcessSummary, ProcessFilesSummaryResponse, ProjectCreate, ProjectInDB, ProjectResponse, ProjectUpdate
 from utils.db import get_db
+from utils.timestamp_helper import update_project_timestamp
 from bson import ObjectId
 
 def calculate_project_status(files):
@@ -20,17 +22,13 @@ def calculate_project_status(files):
     ):
         return "complete"
     
-    # Files exist with content but not fully processed
+    # Files exist with content but not fully processeds
     return "in_progress"
 
 async def create_project(project: ProjectCreate, db, current_user):
     existing_project = await db.projects.find_one({"name": project.name})
     if existing_project:
-        raise HTTPException(
-            status_code=400,
-            detail="A project with that name already exists."
-        )
-    
+        raise HTTPException(status_code=400, detail="A project with that name already exists.")
     try:
         project_data = ProjectInDB(
             name=project.name,
@@ -39,14 +37,26 @@ async def create_project(project: ProjectCreate, db, current_user):
             tags=project.tags or [],
         )
         result = await db.projects.insert_one(project_data.model_dump(by_alias=True))
+        project_id = str(result.inserted_id)
 
-        response_data = project_data.model_dump(by_alias=True)
-        return ProjectResponse(**response_data)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while creating the project: {str(e)}"
+        # Ensure default preferences exist for new projects
+        await db.preferences.update_one(
+            {"project_id": project_id},
+            {"$setOnInsert": {
+                "project_id": project_id,
+                "directory_exclusion": {"exclude_files": [], "exclude_dirs": []},
+                "per_file_exclusion": [],
+                "project_settings": {},
+                "format": "HTML",
+                "current_Step": 0,
+            }},
+            upsert=True,
         )
+
+        doc = await db.projects.find_one({"_id": result.inserted_id})
+        return ProjectResponse(**doc)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while creating the project: {str(e)}")
     
 async def get_project_by_id(project_id: str, db):
     project_id = ObjectId(project_id)
@@ -98,7 +108,8 @@ async def update_project(project_id: str, project: ProjectUpdate, db):
                     status_code=400,
                     detail="A project with that name already exists."
                 )
-
+        # Always update the timestamp when updating a project
+        update_data["updated_at"] = datetime.now()
         result = await db.projects.update_one({"_id": project_id}, {"$set": update_data})
         if result.modified_count == 0:
             raise HTTPException(
@@ -208,19 +219,18 @@ async def apply_preferences_and_update_project(project_id: str, db):
 
         # Update the file in the DB with processed content
         await db.files.update_one(
-            {"_id": file["_id"]},
-            {"$set": {
+            {"_id": file["_id"]},            {"$set": {
                 "processed_functions": filtered_functions,
                 "processed_classes": filtered_classes
             }}
         )
 
-    # After processing, update project status
+    # After processing, update project status and timestamp
     files = await db.files.find({"project_id": project_id}).to_list(length=None)
     new_status = calculate_project_status(files)
     await db.projects.update_one(
         {"_id": ObjectId(project_id)},
-        {"$set": {"status": new_status}}
+        {"$set": {"status": new_status, "updated_at": datetime.now()}}
     )
 
     return {
@@ -415,14 +425,12 @@ async def process_project_files(project_id: str, db):
             included_classes=included_classes,
             excluded_classes=excluded_classes,
             excluded_methods=excluded_methods or None
-        ))
-
-    # After processing, update project status
+        ))    # After processing, update project status and timestamp
     files = await db.files.find({"project_id": project_id}).to_list(length=None)
     new_status = calculate_project_status(files)
     await db.projects.update_one(
         {"_id": ObjectId(project_id)},
-        {"$set": {"status": new_status}}
+        {"$set": {"status": new_status, "updated_at": datetime.now()}}
     )
 
     return ProcessFilesSummaryResponse(processed_files=summary)
