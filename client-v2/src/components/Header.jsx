@@ -1,28 +1,82 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import { useAuth } from "../context/authContext";
 import { useNavigate } from "react-router-dom";
+import { FaRegUserCircle } from "react-icons/fa";
 
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  const handleSettings = () => {
+    setDropdownOpen(false);
+    navigate("/settings");
+  };
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
+
   return (
     <header className="flex justify-between items-center px-6 py-4 bg-gray-100 shadow">
       <div className="text-xl font-bold">Exceptionals</div>
       {user && (
-        <div className="flex items-center gap-x-4">
-          <span className="font-medium">Welcome, {user.username}</span>
+        <div className="relative flex items-center gap-x-2" ref={dropdownRef}>
           <button
-            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-            onClick={handleLogout}
+            className="flex items-center gap-x-2 px-3 py-1 bg-white rounded hover:bg-gray-200 border border-gray-300"
+            onClick={() => setDropdownOpen((open) => !open)}
           >
-            Logout
+            <FaRegUserCircle className="text-xl" />
+            <span className="font-medium">{user.username}</span>
+            <svg
+              className={`ml-1 w-4 h-4 transition-transform ${
+                dropdownOpen ? "rotate-180" : ""
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
           </button>
+          {dropdownOpen && (
+            <div className="absolute -left-5 top-full mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg z-10">
+              <button
+                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                onClick={handleSettings}
+              >
+                Settings
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       )}
     </header>

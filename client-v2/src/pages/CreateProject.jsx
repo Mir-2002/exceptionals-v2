@@ -11,10 +11,14 @@ import {
 import { Button, Card } from "../components/ui";
 import { showSuccess, showError } from "../utils/toast";
 
+const TAG_OPTIONS = ["Library", "Framework", "API"];
+
 const CreateProject = () => {
   const [files, setFiles] = useState([]);
   const [zipFile, setZipFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [customTag, setCustomTag] = useState("");
+  const [selectedTags, setSelectedTags] = useState([]);
   const navigate = useNavigate();
   const { token } = useAuth();
 
@@ -37,7 +41,6 @@ const CreateProject = () => {
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    // Separate zip file from other files
     const zip = selectedFiles.find((file) => file.name.endsWith(".zip"));
     setZipFile(zip || null);
     setFiles(selectedFiles.filter((file) => !file.name.endsWith(".zip")));
@@ -51,11 +54,29 @@ const CreateProject = () => {
     setZipFile(null);
   };
 
+  const handleTagToggle = (tag) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleCustomTagAdd = () => {
+    const tag = customTag.trim();
+    if (tag && !selectedTags.includes(tag)) {
+      setSelectedTags((prev) => [...prev, tag]);
+      setCustomTag("");
+    }
+  };
+
   const handleSubmit = async (values) => {
     try {
       // Step 1: Create project
       const project = await createProject(
-        { name: values.name, description: values.description },
+        {
+          name: values.name,
+          description: values.description,
+          tags: selectedTags,
+        },
         token
       );
 
@@ -82,7 +103,6 @@ const CreateProject = () => {
 
   return (
     <main className="flex items-center justify-center h-full">
-      {" "}
       <Card className="w-full max-w-md">
         <Card.Header>
           <Card.Title>Create New Project</Card.Title>
@@ -95,6 +115,66 @@ const CreateProject = () => {
             buttonText={uploading ? "Uploading..." : "Create Project"}
             disabled={uploading}
           />
+          {/* Tag selection */}
+          <div className="mt-4">
+            <label className="block mb-2 font-medium">Project Tags</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {TAG_OPTIONS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`px-3 py-1 rounded border ${
+                    selectedTags.includes(tag)
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-gray-100 text-gray-700 border-gray-300"
+                  }`}
+                  onClick={() => handleTagToggle(tag)}
+                  disabled={uploading}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={customTag}
+                onChange={(e) => setCustomTag(e.target.value)}
+                placeholder="Add custom tag"
+                className="px-2 py-1 border rounded w-full"
+                disabled={uploading}
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCustomTagAdd}
+                disabled={uploading || !customTag.trim()}
+              >
+                Add
+              </Button>
+            </div>
+            {selectedTags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selectedTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs flex items-center"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      className="ml-2 text-xs text-red-500 hover:underline"
+                      onClick={() => handleTagToggle(tag)}
+                      disabled={uploading}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* File upload section */}
           <div className="mt-4">
             <label className="block mb-2 font-medium">
               Upload Files (.py or .zip)

@@ -12,6 +12,7 @@ import SetPreferences from "./pages/SetPreferences";
 import SetFilePreferences from "./pages/SetFilePreferences";
 import SetFunctionClassPreference from "./pages/SetFunctionClassPreference";
 import FinalizePreference from "./pages/FinalizePreference";
+import UserSettings from "./pages/UserSettings";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/projects/create" element={<CreateProject />} />
+              <Route path="/settings" element={<UserSettings />} />
               <Route path="/projects/:projectId" element={<ProjectDetails />} />
               <Route
                 path="/projects/:projectId/preferences"

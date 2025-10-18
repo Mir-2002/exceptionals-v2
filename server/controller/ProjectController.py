@@ -36,6 +36,7 @@ async def create_project(project: ProjectCreate, db, current_user):
             name=project.name,
             description=project.description,
             user_id=str(current_user.id),
+            tags=project.tags or [],
         )
         result = await db.projects.insert_one(project_data.model_dump(by_alias=True))
 

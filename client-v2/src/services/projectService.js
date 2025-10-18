@@ -14,10 +14,10 @@ export async function getUserProjects(userId, token) {
 }
 
 // Create a new project
-export async function createProject({ name, description }, token) {
+export async function createProject({ name, description, tags }, token) {
   const res = await axios.post(
     `${API_URL}/projects`,
-    { name, description },
+    { name, description, tags },
     {
       headers: {
         Authorization: `Bearer ${token}`,

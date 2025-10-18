@@ -17,11 +17,13 @@ class ProjectBase(BaseModel):
     user_id: str 
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+    tags: Optional[List[str]] = []
     status: ProjectStatus = ProjectStatus.EMPTY
 
 class ProjectCreate(BaseModel):
     name: str
     description: str
+    tags: Optional[List[str]] = []
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(None, description="Updated name of the project")

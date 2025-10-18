@@ -10,7 +10,7 @@ import { normalizePath, getNodePath } from "../utils/pathUtils";
 import { showSuccess, showError } from "../utils/toast";
 
 const DEFAULT_EXCLUDE_FILES = ["__init__.py", "setup.py"];
-const DEFAULT_EXCLUDE_DIRS = ["venv", "__pycache__"];
+const DEFAULT_EXCLUDE_DIRS = ["venv", "__pycache__", "tests", "node_modules"];
 
 const SetFilePreferences = () => {
   const { projectId } = useParams();

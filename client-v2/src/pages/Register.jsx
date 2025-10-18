@@ -8,6 +8,7 @@ const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
+
   const handleRegister = async (values) => {
     setError("");
     if (values.password !== values.confirmPassword) {
@@ -21,7 +22,7 @@ const Register = () => {
       navigate("/login");
     } catch (err) {
       const errorMessage =
-        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
         err?.message ||
         "Registration failed. Please try again.";
       setError(errorMessage);

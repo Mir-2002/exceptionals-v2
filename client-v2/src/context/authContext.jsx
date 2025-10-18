@@ -1,8 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  login as loginService,
+  register as registerService,
+  getCurrentUser as getCurrentUserService,
+} from "../services/authService";
 import axios from "axios";
 
 const AuthContext = createContext();
-const API_URL = import.meta.env.VITE_API_URL;
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -25,13 +30,10 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  // Login function (username only)
+  // Login function
   const login = async (username, password) => {
     try {
-      const payload = { username, password };
-      const { data } = await axios.post(API_URL + "/auth/login", payload, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const data = await loginService(username, password);
       setToken(data.access_token);
       localStorage.setItem("token", data.access_token);
       await getCurrentUser(data.access_token);
@@ -44,13 +46,7 @@ export const AuthProvider = ({ children }) => {
   // Register function
   const register = async (username, email, password) => {
     try {
-      const payload = { username, email, password };
-      const { data } = await axios.post(API_URL + "/auth/register", payload, {
-        headers: { "Content-Type": "application/json" },
-      });
-      setToken(data.access_token);
-      localStorage.setItem("token", data.access_token);
-      await getCurrentUser(data.access_token);
+      const data = await registerService(username, email, password);
       return data;
     } catch (error) {
       throw error;
@@ -60,9 +56,7 @@ export const AuthProvider = ({ children }) => {
   // Get current user
   const getCurrentUser = async (authToken = token) => {
     try {
-      const { data } = await axios.get(API_URL + "/auth/me", {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const data = await getCurrentUserService(authToken);
       setUser(data);
       return data;
     } catch (error) {
@@ -76,6 +70,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     localStorage.removeItem("token");
+    // Optionally remove default axios header
     delete axios.defaults.headers.common["Authorization"];
   };
 
@@ -91,6 +86,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     };
     checkAuth();
+    // eslint-disable-next-line
   }, []);
 
   const value = {

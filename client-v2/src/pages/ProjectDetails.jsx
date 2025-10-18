@@ -12,8 +12,8 @@ import {
 } from "../services/fileService";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
-import { Button, Card, LoadingSpinner } from "../components/ui";
 import { showSuccess, showError, showWarning } from "../utils/toast";
+import { FaTrashAlt } from "react-icons/fa";
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -66,8 +66,8 @@ const ProjectDetails = () => {
   useEffect(() => {
     fetchProject();
     fetchFileTree();
-    // eslint-disable-next-line
   }, [projectId, token]);
+
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this project?"))
       return;
@@ -86,6 +86,7 @@ const ProjectDetails = () => {
   const handleFileChange = (e) => {
     setFiles(Array.from(e.target.files));
   };
+
   const handleUpload = async () => {
     if (files.length === 0) return;
     setUploading(true);
@@ -127,6 +128,7 @@ const ProjectDetails = () => {
     }
     return ids;
   };
+
   const handleDeleteNode = async (node, parentPath = "") => {
     if (node.children) {
       const fileIds = collectFileIds(node);
@@ -187,6 +189,7 @@ const ProjectDetails = () => {
       return newSet;
     });
   };
+
   const handleViewFile = async (node) => {
     if (!node.id) return;
     try {
@@ -210,22 +213,23 @@ const ProjectDetails = () => {
     }
   };
 
+  // Updated renderFileTree for vertical spacing and centered FaTrashAlt icon only
   const renderFileTree = (node, depth = 0, parentPath = "") => {
     const path = getNodePath(node, parentPath);
     const isFolder = !!node.children;
     const isOpen = openFolders.has(path);
     const isRoot = path === "root";
 
-    const style = {
-      paddingLeft: `${depth * 20}px`,
-    };
+    // Use Tailwind for left padding and spacing
+    const paddingClass = `pl-[${depth * 1.25}rem]`; // 1.25rem per depth
+    const itemClass = `flex items-center flex-wrap overflow-hidden w-full mb-1`; // mb-1 for less gap
 
     if (isFolder) {
       return (
         <div key={path} className="w-full">
           <div
-            style={style}
-            className="flex items-center flex-wrap overflow-hidden"
+            className={`${itemClass} ${paddingClass}`}
+            style={{ paddingLeft: `${depth * 20}px` }} // fallback for dynamic padding
           >
             <button
               className="mr-2 text-blue-700 font-semibold focus:outline-none flex-shrink-0 bg-transparent border-0 cursor-pointer"
@@ -241,10 +245,12 @@ const ProjectDetails = () => {
             </span>
             {!isRoot && (
               <button
-                className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0"
+                type="button"
+                className="ml-2 flex items-center justify-center px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0"
                 onClick={() => handleDeleteNode(node, parentPath)}
+                aria-label="Delete"
               >
-                Delete
+                <FaTrashAlt className="mx-auto" />
               </button>
             )}
           </div>
@@ -258,8 +264,8 @@ const ProjectDetails = () => {
     return (
       <div
         key={node.id || path}
-        style={style}
-        className="flex items-center flex-wrap overflow-hidden w-full"
+        className={`${itemClass} ${paddingClass}`}
+        style={{ paddingLeft: `${depth * 20}px` }}
       >
         <span
           className={`text-gray-800 cursor-pointer flex-grow min-w-0 truncate ${
@@ -270,10 +276,12 @@ const ProjectDetails = () => {
           📄 {node.name}
         </span>
         <button
-          className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0"
+          type="button"
+          className="ml-2 flex items-center justify-center px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0"
           onClick={() => handleDeleteNode(node, parentPath)}
+          aria-label="Delete"
         >
-          Delete
+          <FaTrashAlt className="mx-auto" />
         </button>
       </div>
     );
@@ -318,6 +326,22 @@ const ProjectDetails = () => {
               </span>
             )}
           </div>
+          {/* Display tags, always show "Tags:" */}
+          <div className="mb-2 flex flex-wrap gap-2 items-center">
+            <span className="font-semibold">Tags:</span>
+            {project.tags && project.tags.length > 0 ? (
+              project.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium"
+                >
+                  {tag}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-500 ml-2">None</span>
+            )}
+          </div>
         </div>
 
         {/* Upload Section */}
@@ -341,7 +365,7 @@ const ProjectDetails = () => {
               {files.map((file, idx) => (
                 <li
                   key={idx}
-                  className="flex items-center justify-between mb-1 gap-2"
+                  className="flex items-center justify-between mb-3 gap-2"
                 >
                   <span className="truncate flex-grow min-w-0 break-all">
                     {file.name}

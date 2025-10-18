@@ -36,6 +36,6 @@ export const showPromise = (promise, messages) => {
   return toast.promise(promise, {
     loading: messages.loading || "Loading...",
     success: messages.success || "Success!",
-    error: messages.error || "Something went wrong!",
+    error: messages.error || "Something went wrong.",
   });
 };
