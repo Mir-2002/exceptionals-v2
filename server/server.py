@@ -6,6 +6,7 @@ from view.FileView import router as file_router
 from view.PreferencesView import router as preferences_router
 from view.AuthView import router as auth_router
 from view.DocumentationView import router as documentation_router
+from view.AdminView import router as admin_router
 
 app = FastAPI(
     title="Exceptionals",
@@ -32,3 +33,4 @@ app.include_router(file_router, prefix="/api", tags=["files"])
 app.include_router(preferences_router, prefix="/api", tags=["preferences"])
 app.include_router(auth_router, prefix="/api", tags=["auth"])
 app.include_router(documentation_router, prefix="/api", tags=["documentation"])
+app.include_router(admin_router, prefix="/api", tags=["admin"])

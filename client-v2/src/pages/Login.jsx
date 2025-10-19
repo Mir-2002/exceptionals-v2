@@ -5,16 +5,22 @@ import { useNavigate } from "react-router-dom";
 import { showSuccess, showError } from "../utils/toast";
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, getCurrentUser } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
 
   const handleLogin = async (values) => {
     setError(""); // Clear previous errors
     try {
-      await login(values.username, values.password);
+      const tokenData = await login(values.username, values.password);
+      // Fetch user profile to know role
+      const me = await getCurrentUser(tokenData.access_token);
       showSuccess("Login successful! Welcome back.");
-      navigate("/dashboard");
+      if (me?.is_admin) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       const errorMessage =
         err?.response?.data?.message || "Login failed. Please try again.";

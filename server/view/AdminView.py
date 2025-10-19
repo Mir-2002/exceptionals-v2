@@ -1,0 +1,45 @@
+from fastapi import APIRouter, Depends
+from controller.AuthController import get_current_user
+from utils.db import get_db
+from controller.AdminController import (
+    list_users as ctl_list_users,
+    admin_update_user as ctl_update_user,
+    admin_delete_user as ctl_delete_user,
+    list_projects as ctl_list_projects,
+    admin_delete_project as ctl_delete_project,
+    list_files as ctl_list_files,
+    cleanup_orphaned_files as ctl_cleanup_orphans,
+)
+
+router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Users
+@router.get("/users")
+async def list_users(db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_list_users(db, current_user)
+
+@router.patch("/users/{user_id}")
+async def admin_update_user(user_id: str, payload: dict, db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_update_user(user_id, payload, db, current_user)
+
+@router.delete("/users/{user_id}")
+async def admin_delete_user(user_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_delete_user(user_id, db, current_user)
+
+# Projects
+@router.get("/projects")
+async def list_projects(db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_list_projects(db, current_user)
+
+@router.delete("/projects/{project_id}")
+async def admin_delete_project(project_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_delete_project(project_id, db, current_user)
+
+# Files
+@router.get("/files")
+async def list_files(db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_list_files(db, current_user)
+
+@router.post("/files/cleanup-orphans")
+async def cleanup_orphaned_files(db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_cleanup_orphans(db, current_user)

@@ -13,6 +13,11 @@ import SetFilePreferences from "./pages/SetFilePreferences";
 import SetFunctionClassPreference from "./pages/SetFunctionClassPreference";
 import FinalizePreference from "./pages/FinalizePreference";
 import UserSettings from "./pages/UserSettings";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminUsers from "./pages/AdminUsers";
+import AdminFiles from "./pages/AdminFiles";
+import AdminProjects from "./pages/AdminProjects";
+import AdminDocs from "./pages/AdminDocs";
 
 function App() {
   return (
@@ -28,6 +33,11 @@ function App() {
             {/* Protected routes with header and layout */}
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/files" element={<AdminFiles />} />
+              <Route path="/admin/projects" element={<AdminProjects />} />
+              <Route path="/admin/documentations" element={<AdminDocs />} />
               <Route path="/projects/create" element={<CreateProject />} />
               <Route path="/settings" element={<UserSettings />} />
               <Route path="/projects/:projectId" element={<ProjectDetails />} />
