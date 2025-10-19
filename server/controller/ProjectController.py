@@ -1,6 +1,6 @@
 from typing import List
 from datetime import datetime
-from fastapi import Depends, HTTPException
+from fastapi import  HTTPException
 from model.ProjectModel import FileProcessSummary, ProcessFilesSummaryResponse, ProjectCreate, ProjectInDB, ProjectResponse, ProjectUpdate
 from utils.db import get_db
 from utils.timestamp_helper import update_project_timestamp

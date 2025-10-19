@@ -55,12 +55,21 @@ export async function uploadProjectZip(projectId, zipFile, token) {
   return res.data;
 }
 
-// Get file tree
 export async function getFileTree(projectId, token) {
-  const res = await axios.get(`${API_URL}/projects/${projectId}/files/tree`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const url = `${API_URL}/projects/${projectId}/files/tree?t=${Date.now()}`; // cache buster
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
   });
-  return res.data;
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(msg || "Failed to fetch file tree");
+  }
+  return res.json();
 }
 
 // Get all files
