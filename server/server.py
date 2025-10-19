@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from view.UserView import router as user_router
 from view.ProjectView import router as project_router
 from view.FileView import router as file_router
@@ -7,6 +8,13 @@ from view.PreferencesView import router as preferences_router
 from view.AuthView import router as auth_router
 from view.DocumentationView import router as documentation_router
 from view.AdminView import router as admin_router
+import logging
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 app = FastAPI(
     title="Exceptionals",

@@ -48,7 +48,7 @@ def extract_py_files_from_zip(zip_bytes) -> list:
     Returns a list of dicts: [{ "filename": <relative_path>, "functions": [...], "classes": [...] }, ...]
     """
 
-    EXCLUDE_DIRS = {"venv", "__pycache__", "tests", "node_modules"}
+    EXCLUDE_DIRS = {"venv", "__pycache__"}
 
     extracted_files = []
     with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:

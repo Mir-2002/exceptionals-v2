@@ -18,6 +18,9 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminFiles from "./pages/admin/AdminFiles";
 import AdminProjects from "./pages/admin/AdminProjects";
 import AdminDocs from "./pages/admin/AdminDocs";
+import GenerateDocumentation from "./pages/GenerateDocumentation";
+import HFDemoTest from "./pages/HFDemoTest";
+import DocumentationDetails from "./pages/DocumentationDetails";
 
 function App() {
   return (
@@ -57,6 +60,15 @@ function App() {
                 path="/projects/:projectId/preferences/finalize"
                 element={<FinalizePreference />}
               />
+              <Route
+                path="/projects/:projectId/documentation/generate"
+                element={<GenerateDocumentation />}
+              />
+              <Route
+                path="/projects/:projectId/documentation/:revisionId"
+                element={<DocumentationDetails />}
+              />
+              <Route path="/debug/hf-demo" element={<HFDemoTest />} />
             </Route>
           </Routes>
           {/* Toast notifications */}

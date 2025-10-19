@@ -216,7 +216,8 @@ const FinalizePreference = () => {
     );
     if (ok) {
       showSuccess("Preferences saved to backend.");
-      navigate(`/projects/${projectId}/preferences`);
+      // Redirect to generate page to review items and trigger model
+      navigate(`/projects/${projectId}/documentation/generate`);
     } else {
       showError("Failed to save project preferences. Please try again.");
     }
