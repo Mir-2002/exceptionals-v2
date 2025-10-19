@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
-from controller.FileController import delete_project_files, get_file_by_project, get_project_file_tree, upload_file, get_file, delete_file, upload_project_zip
+from controller.FileController import delete_project_files, get_file_by_project, get_project_file_tree, upload_file, get_file, delete_file, upload_project_files, upload_project_zip
 from model.FileModel import FileResponse
 from controller.AuthController import get_current_user
 from utils.db import get_db
@@ -16,6 +16,16 @@ async def upload_file_view(
 ):
     await get_and_check_project_ownership(project_id, db, current_user)
     return await upload_file(project_id, file, db)
+
+@router.post("/multiple", summary="Upload multiple files to a project")
+async def upload_multiple_files(
+    project_id: str,
+    files: list[UploadFile] = File(...),
+    current_user=Depends(get_current_user),
+    db=Depends(get_db)
+):
+    await get_and_check_project_ownership(project_id, db, current_user)
+    return await upload_project_files(project_id, files, db)
 
 @router.get("/tree", summary="Get the project file tree")
 async def get_file_tree_view(project_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):

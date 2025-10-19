@@ -46,6 +46,12 @@ const ProjectDetails = () => {
     try {
       const tree = await getFileTree(projectId, token);
       setFileTree(tree);
+
+      // Auto-expand root to show new files
+      if (tree?.name) {
+        setOpenFolders((prev) => new Set([...prev, tree.name]));
+      }
+
       if (tree) {
         const checkIds = (node) => {
           if (node.children) {
@@ -59,7 +65,9 @@ const ProjectDetails = () => {
         checkIds(tree);
       }
     } catch (err) {
-      setFileTree(null);
+      console.error("Failed to fetch file tree:", err);
+      // Set empty tree instead of null for better UX
+      setFileTree({ name: "root", children: [] });
     }
   };
 
@@ -102,12 +110,15 @@ const ProjectDetails = () => {
       } else {
         await uploadProjectFiles(projectId, files, token);
       }
+
       showSuccess("Files uploaded successfully!");
       setFiles([]);
-      fetchProject();
-      fetchFileTree();
+
+      // Await both operations to ensure they complete before showing success
+      await Promise.all([fetchProject(), fetchFileTree()]);
     } catch (err) {
-      showError("Failed to upload files. Please try again.");
+      console.error("Upload error:", err);
+      showError(err.message || "Failed to upload files. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -146,7 +157,10 @@ const ProjectDetails = () => {
         await Promise.all(
           fileIds.map((fileId) => deleteFile(projectId, fileId, token))
         );
-        fetchFileTree();
+
+        // Await the refresh operations
+        await Promise.all([fetchProject(), fetchFileTree()]);
+
         setSelectedFile(null);
         setFileContent("");
         setViewingFileName("");
@@ -155,6 +169,7 @@ const ProjectDetails = () => {
           `Folder "${node.name}" and all its files deleted successfully!`
         );
       } catch (err) {
+        console.error("Delete folder error:", err);
         showError("Failed to delete folder and its files.");
       }
     } else {
@@ -166,13 +181,17 @@ const ProjectDetails = () => {
         return;
       try {
         await deleteFile(projectId, node.id, token);
-        fetchFileTree();
+
+        // Await the refresh operations
+        await Promise.all([fetchProject(), fetchFileTree()]);
+
         setSelectedFile(null);
         setFileContent("");
         setViewingFileName("");
         setShowFileBox(false);
         showSuccess(`File "${node.name}" deleted successfully!`);
       } catch (err) {
+        console.error("Delete file error:", err);
         showError("Failed to delete file.");
       }
     }
@@ -401,7 +420,7 @@ const ProjectDetails = () => {
             Uploaded Files
           </h3>
           <div className="overflow-auto w-full flex-1 rounded">
-            {fileTree ? (
+            {fileTree && fileTree.children && fileTree.children.length > 0 ? (
               renderFileTree(fileTree)
             ) : (
               <div className="text-gray-500">No files uploaded yet.</div>

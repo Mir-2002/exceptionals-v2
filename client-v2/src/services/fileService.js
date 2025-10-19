@@ -26,7 +26,7 @@ export async function uploadProjectFiles(projectId, files, token) {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
   const res = await axios.post(
-    `${API_URL}/projects/${projectId}/files/upload-multiple`,
+    `${API_URL}/projects/${projectId}/files/multiple`,
     formData,
     {
       headers: {

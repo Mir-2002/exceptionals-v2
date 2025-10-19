@@ -1,6 +1,7 @@
 from datetime import datetime
 from fastapi import Depends, File, UploadFile, HTTPException
 from bson import ObjectId
+from fastapi.responses import JSONResponse
 from model.FileModel import FileResponse
 from controller.ProjectController import calculate_project_status
 from utils.build_tree import build_file_tree
@@ -42,6 +43,55 @@ async def upload_file(project_id: str, file: UploadFile = File(...), db=Depends(
             detail=f"An error occurred while uploading the file: {str(e)}"
         )
     
+async def upload_project_files(project_id: str, files: list[UploadFile], db=Depends(get_db)):
+    """
+    Upload multiple individual Python files to a project.
+    """
+    try:
+        uploaded_files = []
+        
+        for file in files:
+            if not file.filename.endswith('.py'):
+                continue  # Skip non-Python files
+                
+            content = (await file.read()).decode("utf-8")
+            parsed = extract_functions_classes_from_content(content)
+            
+            file_data = {
+                "project_id": project_id,
+                "filename": file.filename,  # Just the filename, will be placed in root
+                "functions": parsed["functions"],
+                "classes": parsed["classes"]
+            }
+            
+            result = await db.files.insert_one(file_data)
+            uploaded_files.append({
+                "file_id": str(result.inserted_id),
+                "filename": file.filename
+            })
+        
+        # Update project status after all uploads
+        try:
+            all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
+            new_status = calculate_project_status(all_project_files)
+            await db.projects.update_one(
+                {"_id": ObjectId(project_id)},
+                {"$set": {"status": new_status, "updated_at": datetime.now()}}
+            )
+        except Exception as e:
+            print(f"Warning: Could not update project status for {project_id} after multiple file upload. Error: {e}")
+        
+        return {
+            "detail": "Files uploaded successfully", 
+            "files_processed": len(uploaded_files),
+            "uploaded_files": uploaded_files
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while uploading files: {str(e)}"
+        )
     
 async def upload_project_zip(project_id: str, zip_file: UploadFile = File(...), db=Depends(get_db)):
     try:
@@ -79,9 +129,26 @@ async def get_project_file_tree(project_id: str, db=Depends(get_db)):
     """
     files = await db.files.find({"project_id": project_id}).to_list(length=None)
     if not files:
-        raise HTTPException(status_code=404, detail="No files found for this project")
+        # Return empty tree instead of 404 for better UX
+        empty_tree = {"name": "root", "children": []}
+        return JSONResponse(
+            content=empty_tree,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    
     tree = build_file_tree(files)
-    return tree
+    return JSONResponse(
+        content=tree,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache", 
+            "Expires": "0"
+        }
+    )
 
 async def get_file_by_project(project_id: str, db=Depends(get_db)):
     """
