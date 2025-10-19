@@ -169,10 +169,16 @@ async def delete_file(project_id: str, file_id: str, db=Depends(get_db)):
     result = await db.files.delete_one({"_id": file_id, "project_id": project_id})    
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="File not found")
-    
-    # Update project timestamp after file deletion
-    await update_project_timestamp(project_id, db)
-    
+    # Recalculate project status and update timestamp
+    try:
+        all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
+        new_status = calculate_project_status(all_project_files)
+        await db.projects.update_one(
+            {"_id": ObjectId(project_id)},
+            {"$set": {"status": new_status, "updated_at": datetime.now()}}
+        )
+    except Exception as e:
+        print(f"Warning: Could not update project status after file deletion for {project_id}. Error: {e}")
     return {"detail": "File deleted successfully"}
 
 async def delete_project_files(project_id: str, db=Depends(get_db)):
@@ -182,8 +188,14 @@ async def delete_project_files(project_id: str, db=Depends(get_db)):
     result = await db.files.delete_many({"project_id": project_id})    
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="No files found for this project")
-    
-    # Update project timestamp after files deletion
-    await update_project_timestamp(project_id, db)
-    
+    # Recalculate project status and update timestamp
+    try:
+        all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
+        new_status = calculate_project_status(all_project_files)
+        await db.projects.update_one(
+            {"_id": ObjectId(project_id)},
+            {"$set": {"status": new_status, "updated_at": datetime.now()}}
+        )
+    except Exception as e:
+        print(f"Warning: Could not update project status after bulk file deletion for {project_id}. Error: {e}")
     return {"detail": f"{result.deleted_count} files deleted successfully"}

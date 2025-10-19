@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { usePreferences } from "../context/preferenceContext";
 import { useAuth } from "../context/authContext";
 import { getDocumentationPlan } from "../services/documentationService";
-import { Button, Card, LoadingSpinner, StatsCard } from "../components/ui";
+import { Button, Card, StatsCard } from "../components/ui";
 import { normalizePath, basename, getNodePath } from "../utils/pathUtils";
 import { showSuccess, showError } from "../utils/toast";
 
@@ -15,8 +15,6 @@ const FinalizePreference = () => {
     isFileIncluded,
     completeStep,
     preferences,
-    getAllItemCounts,
-    getFunctionClassCounts,
   } = usePreferences();
 
   const { token } = useAuth();

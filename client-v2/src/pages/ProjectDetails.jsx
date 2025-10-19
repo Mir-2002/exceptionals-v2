@@ -14,6 +14,7 @@ import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { showSuccess, showError, showWarning } from "../utils/toast";
 import { FaTrashAlt } from "react-icons/fa";
+import { FiFolder, FiUpload, FiPlay, FiArrowLeft } from "react-icons/fi";
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -316,7 +317,8 @@ const ProjectDetails = () => {
       <div className="w-[500px] p-6 border rounded-lg shadow bg-white">
         {/* Project Details */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2 break-words">
+          <h2 className="text-2xl font-bold mb-2 break-words flex items-center gap-2">
+            <FiFolder className="text-blue-600" />
             {project.name}
           </h2>
           <div className="mb-2">
@@ -328,19 +330,19 @@ const ProjectDetails = () => {
           <div className="mb-2">
             <span className="font-semibold">Status:</span>
             {project.status.toLowerCase() === "empty" || !project.status ? (
-              <span className="ml-2 px-2 py-1 rounded bg-gray-200 text-gray-700 font-semibold">
+              <span className="ml-2 px-2 py-1 rounded bg-gray-500 text-white font-semibold">
                 EMPTY
               </span>
             ) : project.status.toLowerCase() === "in_progress" ? (
-              <span className="ml-2 px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-semibold">
+              <span className="ml-2 px-2 py-1 rounded bg-yellow-500 text-white font-semibold">
                 IN PROGRESS
               </span>
             ) : project.status.toLowerCase() === "completed" ? (
-              <span className="ml-2 px-2 py-1 rounded bg-green-100 text-green-800 font-semibold">
+              <span className="ml-2 px-2 py-1 rounded bg-green-500 text-white">
                 COMPLETED
               </span>
             ) : (
-              <span className="ml-2 px-2 py-1 rounded bg-gray-200 text-gray-700 font-semibold">
+              <span className="ml-2 px-2 py-1 rounded bg-gray-500 text-white">
                 {project.status}
               </span>
             )}
@@ -365,8 +367,8 @@ const ProjectDetails = () => {
 
         {/* Upload Section */}
         <div className="mb-8">
-          <label className="block mb-2 font-medium">
-            Upload Files (.py or .zip)
+          <label className="mb-2 font-medium inline-flex items-center gap-2">
+            <FiUpload /> Upload Files (.py or .zip)
           </label>
           <input
             type="file"
@@ -416,8 +418,8 @@ const ProjectDetails = () => {
           className="bg-gray-50 p-4 rounded border flex flex-col overflow-hidden"
           style={{ height: "40vh" }}
         >
-          <h3 className="text-lg font-bold mb-2 flex-shrink-0">
-            Uploaded Files
+          <h3 className="text-lg font-bold mb-2 flex items-center gap-2 flex-shrink-0">
+            <FiFolder className="text-blue-600" /> Uploaded Files
           </h3>
           <div className="overflow-auto w-full flex-1 rounded">
             {fileTree && fileTree.children && fileTree.children.length > 0 ? (
@@ -433,13 +435,13 @@ const ProjectDetails = () => {
           {/* Left side: Back & Start Documentation */}
           <div className="flex gap-2">
             <button
-              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              className="px-4 py-2 bg-gray-300 rounded font-semibold  hover:bg-gray-400 inline-flex items-center gap-2"
               onClick={() => navigate("/dashboard")}
             >
-              Back
+              <FiArrowLeft /> Back
             </button>
             <button
-              className={`px-4 py-2 rounded text-white ${
+              className={`px-4 py-2 rounded text-white inline-flex items-center gap-2 font-semibold ${
                 fileTree && fileTree.children && fileTree.children.length > 0
                   ? "bg-green-600 hover:bg-green-700"
                   : "bg-gray-400 cursor-not-allowed"
@@ -453,12 +455,12 @@ const ProjectDetails = () => {
                 !(fileTree && fileTree.children && fileTree.children.length > 0)
               }
             >
-              Start Documentation
+              <FiPlay /> Start Documentation
             </button>
           </div>
           {/* Right side: Delete Project */}
           <button
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
+            className="px-4 py-2 bg-red-500 text-white rounded font-semibold  hover:bg-red-600 disabled:opacity-50"
             onClick={handleDelete}
             disabled={deleting}
           >

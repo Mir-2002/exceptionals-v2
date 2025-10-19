@@ -5,6 +5,7 @@ import { usePreferences } from "../context/preferenceContext";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { Button, Card, LoadingSpinner, StatsCard } from "../components/ui";
+import { FiSettings, FiCode, FiFile } from "react-icons/fi";
 import { normalizePath, getNodePath } from "../utils/pathUtils";
 import { showSuccess, showError } from "../utils/toast";
 
@@ -323,7 +324,10 @@ const SetFunctionClassPreference = () => {
       {/* Left Pane: File Tree */}
       <Card className="w-[320px] flex flex-col">
         <Card.Header>
-          <Card.Title>Included Files</Card.Title>
+          <div className="flex items-center gap-2">
+            <FiFile className="text-blue-600" />
+            <Card.Title>Included Files</Card.Title>
+          </div>
         </Card.Header>
         <Card.Content className="overflow-auto max-h-[70vh]">
           {renderFileTree(fileTree) || (
@@ -344,9 +348,12 @@ const SetFunctionClassPreference = () => {
       {/* Right Pane: Details */}
       <Card className="flex-1 min-h-[70vh]">
         <Card.Header>
-          <Card.Title>Set Function/Class Preferences</Card.Title>
+          <div className="flex items-center gap-2">
+            <FiSettings className="text-blue-600" />
+            <Card.Title>Set Function/Class Preferences</Card.Title>
+          </div>
           <p className="text-gray-600">
-            Exclude functions or classes from the documentation.
+            Exclude functions, classes, or methods from the documentation.
           </p>
         </Card.Header>
         <Card.Content>

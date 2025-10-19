@@ -8,6 +8,7 @@ import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { Button, Card, LoadingSpinner, StatsCard } from "../components/ui";
 import { normalizePath, getNodePath } from "../utils/pathUtils";
 import { showSuccess, showError } from "../utils/toast";
+import { FiFolder, FiFilter, FiFileText } from "react-icons/fi";
 
 const DEFAULT_EXCLUDE_FILES = ["__init__.py", "setup.py"];
 const DEFAULT_EXCLUDE_DIRS = ["venv", "__pycache__", "tests", "node_modules"];
@@ -308,7 +309,10 @@ const SetFilePreferences = () => {
     <div className="flex flex-row gap-8 w-full max-w-none mx-auto mt-10 px-4 overflow-x-hidden justify-center">
       {/* Main Preferences Box */}
       <div className="w-[500px] p-6 border rounded-lg shadow bg-white flex flex-col">
-        <h2 className="text-xl font-bold mb-4">Set File Preferences</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <FiFilter className="text-blue-600" />
+          <h2 className="text-xl font-bold">Set File Preferences</h2>
+        </div>
         <p className="mb-2 text-gray-600">
           Uncheck files or folders you want to exclude from documentation.
           Everything is included by default.
@@ -329,6 +333,10 @@ const SetFilePreferences = () => {
           <LoadingSpinner text="Loading file tree..." />
         ) : fileTree ? (
           <div className="border rounded p-4 max-h-96 overflow-auto">
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+              <FiFolder />
+              <span>Project files</span>
+            </div>
             {renderTree(fileTree)}
           </div>
         ) : (
@@ -354,9 +362,14 @@ const SetFilePreferences = () => {
       {/* File Content Box */}
       {showFileBox && (
         <div className="w-[500px] bg-gray-50 p-6 rounded border shadow h-fit">
-          <h3 className="text-lg font-bold mb-4 break-words">
-            {viewingFileName ? `Viewing: ${viewingFileName}` : "File Contents"}
-          </h3>
+          <div className="flex items-center gap-2 mb-2">
+            <FiFileText className="text-blue-600" />
+            <h3 className="text-lg font-bold break-words">
+              {viewingFileName
+                ? `Viewing: ${viewingFileName}`
+                : "File Contents"}
+            </h3>
+          </div>
           <div className="w-full max-h-[70vh] overflow-auto rounded">
             <SyntaxHighlighter
               language="python"

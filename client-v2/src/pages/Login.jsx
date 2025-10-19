@@ -3,6 +3,7 @@ import Form from "../components/Form";
 import { useAuth } from "../context/authContext";
 import { useNavigate } from "react-router-dom";
 import { showSuccess, showError } from "../utils/toast";
+import { FiLogIn } from "react-icons/fi";
 
 const Login = () => {
   const { login, getCurrentUser } = useAuth();
@@ -10,28 +11,28 @@ const Login = () => {
   const [error, setError] = useState("");
 
   const handleLogin = async (values) => {
-    setError(""); // Clear previous errors
+    setError("");
     try {
       const tokenData = await login(values.username, values.password);
-      // Fetch user profile to know role
       const me = await getCurrentUser(tokenData.access_token);
       showSuccess("Login successful! Welcome back.");
-      if (me?.is_admin) {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      if (me?.is_admin) navigate("/admin");
+      else navigate("/dashboard");
     } catch (err) {
-      const errorMessage =
-        err?.response?.data?.message || "Login failed. Please try again.";
+      const apiDetail =
+        err?.response?.data?.detail || err?.response?.data?.message;
+      const errorMessage = apiDetail || "Login failed. Please try again.";
       setError(errorMessage);
       showError(errorMessage);
     }
   };
   return (
-    <div className="bg-gray-50 min-h-screen w-screen overflow-x-hidden flex justify-center items-center">
-      <section className="flex flex-col w-full max-w-md h-full justify-center items-center gap-y-4 px-6">
-        <h1 className="text-2xl font-bold">Login</h1>
+    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white shadow rounded-lg p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <FiLogIn className="text-blue-600 text-xl" />
+          <h1 className="text-2xl font-bold">Login</h1>
+        </div>
         <Form
           fields={[
             {
@@ -60,8 +61,8 @@ const Login = () => {
             Register here
           </a>
         </p>
-      </section>
-    </div>
+      </div>
+    </main>
   );
 };
 

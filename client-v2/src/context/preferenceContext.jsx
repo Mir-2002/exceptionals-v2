@@ -290,28 +290,60 @@ export const PreferenceProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       try {
-        const [prefs, files, tree] = await Promise.all([
+        // Always try to load files and tree, independent of preferences
+        const [prefsRes, files, tree] = await Promise.allSettled([
           getPreferences(projId, authToken),
           getAllFiles(projId, authToken),
           getFileTree(projId, authToken),
         ]);
 
-        const safePrefs = {
-          directory_exclusion: prefs?.directory_exclusion || {
-            exclude_files: [],
-            exclude_dirs: [],
-          },
-          per_file_exclusion: sanitizePerFileList(prefs?.per_file_exclusion),
-          project_settings: prefs?.project_settings || {},
-          format: prefs?.format || prefs?.project_settings?.format || "HTML",
-          current_Step: prefs?.current_Step ?? 0,
-        };
+        // Handle files
+        if (files.status === "fulfilled") {
+          setAllFilesData(Array.isArray(files.value) ? files.value : []);
+        } else {
+          setAllFilesData([]);
+        }
 
-        setPreferences(safePrefs);
-        setCurrentStep(safePrefs.current_Step || 0); // <-- sync from backend
-        setAllFilesData(files || []);
-        setFileTree(tree || null);
+        // Handle tree (fall back to empty root)
+        if (tree.status === "fulfilled" && tree.value) {
+          setFileTree(tree.value);
+        } else {
+          setFileTree({
+            name: "root",
+            type: "directory",
+            path: "root",
+            children: [],
+          });
+        }
+
+        // Handle preferences
+        if (prefsRes.status === "fulfilled" && prefsRes.value) {
+          const prefs = prefsRes.value;
+          const safePrefs = {
+            directory_exclusion: prefs?.directory_exclusion || {
+              exclude_files: [],
+              exclude_dirs: [],
+            },
+            per_file_exclusion: sanitizePerFileList(prefs?.per_file_exclusion),
+            project_settings: prefs?.project_settings || {},
+            format: prefs?.format || prefs?.project_settings?.format || "HTML",
+            current_Step: prefs?.current_Step ?? 0,
+          };
+          setPreferences(safePrefs);
+          setCurrentStep(safePrefs.current_Step || 0);
+        } else {
+          // No prefs yet (e.g., 404) — keep sane defaults
+          setPreferences({
+            directory_exclusion: { exclude_files: [], exclude_dirs: [] },
+            per_file_exclusion: [],
+            project_settings: {},
+            format: "HTML",
+            current_Step: 0,
+          });
+          setCurrentStep(0);
+        }
       } catch (err) {
+        // Unexpected failure — set defaults but keep files/tree best-effort
         setPreferences({
           directory_exclusion: { exclude_files: [], exclude_dirs: [] },
           per_file_exclusion: [],
@@ -320,9 +352,6 @@ export const PreferenceProvider = ({ children }) => {
           current_Step: 0,
         });
         setCurrentStep(0);
-        setAllFilesData([]);
-        setFileTree(null);
-        resetCompletedSteps();
         if (err?.status !== 404 && err?.response?.status !== 404) {
           setError("Failed to initialize preferences.");
         }
@@ -330,7 +359,7 @@ export const PreferenceProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [resetCompletedSteps]
+    [sanitizePerFileList]
   );
 
   // Save / complete step

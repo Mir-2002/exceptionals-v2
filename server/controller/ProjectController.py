@@ -20,7 +20,7 @@ def calculate_project_status(files):
         (f.get("classes") == f.get("processed_classes", []))
         for f in files if f.get("functions") or f.get("classes")
     ):
-        return "complete"
+        return "completed"
     
     # Files exist with content but not fully processeds
     return "in_progress"

@@ -3,6 +3,7 @@ import Form from "../components/Form";
 import { useAuth } from "../context/authContext";
 import { useNavigate } from "react-router-dom";
 import { showSuccess, showError } from "../utils/toast";
+import { FiUserPlus } from "react-icons/fi";
 
 const Register = () => {
   const { register } = useAuth();
@@ -12,8 +13,9 @@ const Register = () => {
   const handleRegister = async (values) => {
     setError("");
     if (values.password !== values.confirmPassword) {
-      setError("Passwords do not match.");
-      showError("Passwords do not match.");
+      const msg = "Passwords do not match.";
+      setError(msg);
+      showError(msg);
       return;
     }
     try {
@@ -21,18 +23,21 @@ const Register = () => {
       showSuccess("Registration successful! Please log in.");
       navigate("/login");
     } catch (err) {
+      const apiDetail =
+        err?.response?.data?.detail || err?.response?.data?.message;
       const errorMessage =
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Registration failed. Please try again.";
+        apiDetail || err?.message || "Registration failed. Please try again.";
       setError(errorMessage);
       showError(errorMessage);
     }
   };
   return (
-    <div className="bg-gray-50 min-h-screen w-screen overflow-x-hidden flex justify-center items-center">
-      <section className="flex flex-col w-full max-w-md h-full justify-center items-center gap-y-4 px-6">
-        <h1 className="text-2xl font-bold">Register</h1>
+    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white shadow rounded-lg p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <FiUserPlus className="text-blue-600 text-xl" />
+          <h1 className="text-2xl font-bold">Register</h1>
+        </div>
         <Form
           fields={[
             {
@@ -80,8 +85,8 @@ const Register = () => {
             Login here
           </a>
         </p>
-      </section>
-    </div>
+      </div>
+    </main>
   );
 };
 

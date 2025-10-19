@@ -32,7 +32,8 @@ const SetPreferences = () => {
   } = usePreferences();
   useEffect(() => {
     if (token) initializePreferences(projectId, token);
-  }, [projectId, token, initializePreferences]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, token]);
 
   const handleStepClick = (stepNumber, route) => {
     if (isStepAccessible(stepNumber)) {

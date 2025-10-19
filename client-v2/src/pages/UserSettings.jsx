@@ -4,6 +4,13 @@ import { getUserById, updateUser, deleteUser } from "../services/userService";
 import { showSuccess, showError } from "../utils/toast";
 import { useNavigate } from "react-router-dom";
 import { Button, Card } from "../components/ui";
+import {
+  FiUser,
+  FiMail,
+  FiTrash2,
+  FiArrowLeft,
+  FiSettings,
+} from "react-icons/fi";
 
 const UserSettings = () => {
   const { user, token, logout } = useAuth();
@@ -69,16 +76,21 @@ const UserSettings = () => {
   if (loading) return <div className="p-8">Loading...</div>;
 
   return (
-    <main className="flex justify-center items-center min-h-screen bg-gray-50">
+    <main className="flex justify-center items-center min-h-screen bg-gray-50 px-4">
       <Card className="w-full max-w-md">
         <Card.Header>
-          <Card.Title>User Settings</Card.Title>
+          <div className="flex items-center gap-2">
+            <FiSettings className="text-blue-600" />
+            <Card.Title>User Settings</Card.Title>
+          </div>
         </Card.Header>
         <Card.Content>
           {/* Username Section - OUTSIDE form */}
           <div className="space-y-6">
             <div>
-              <label className="block mb-1 font-medium">Username</label>
+              <label className="inline-flex items-center gap-2 mb-1 font-medium">
+                <FiUser /> Username
+              </label>
               <div className="flex items-center gap-2">
                 {editingField === "username" ? (
                   <form
@@ -132,7 +144,9 @@ const UserSettings = () => {
 
             {/* Email Section - OUTSIDE form */}
             <div>
-              <label className="block mb-1 font-medium">Email</label>
+              <label className="inline-flex items-center gap-2 mb-1 font-medium">
+                <FiMail /> Email
+              </label>
               <div className="flex items-center gap-2">
                 {editingField === "email" ? (
                   <form
@@ -188,19 +202,19 @@ const UserSettings = () => {
           <hr className="my-6" />
           <Button
             variant="danger"
-            className="w-full mb-4"
+            className="w-full mb-4 inline-flex items-center justify-center gap-2"
             onClick={handleDelete}
             disabled={deleting}
           >
-            {deleting ? "Deleting..." : "Delete Account"}
+            <FiTrash2 /> {deleting ? "Deleting..." : "Delete Account"}
           </Button>
           <Button
             variant="secondary"
-            className="w-full"
+            className="w-full inline-flex items-center justify-center gap-2"
             onClick={() => navigate("/dashboard")}
             disabled={deleting || saving}
           >
-            Back to Dashboard
+            <FiArrowLeft /> Back to Dashboard
           </Button>
         </Card.Content>
       </Card>

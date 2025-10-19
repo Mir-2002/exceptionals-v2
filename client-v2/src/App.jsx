@@ -13,11 +13,11 @@ import SetFilePreferences from "./pages/SetFilePreferences";
 import SetFunctionClassPreference from "./pages/SetFunctionClassPreference";
 import FinalizePreference from "./pages/FinalizePreference";
 import UserSettings from "./pages/UserSettings";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminUsers from "./pages/AdminUsers";
-import AdminFiles from "./pages/AdminFiles";
-import AdminProjects from "./pages/AdminProjects";
-import AdminDocs from "./pages/AdminDocs";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminFiles from "./pages/admin/AdminFiles";
+import AdminProjects from "./pages/admin/AdminProjects";
+import AdminDocs from "./pages/admin/AdminDocs";
 
 function App() {
   return (

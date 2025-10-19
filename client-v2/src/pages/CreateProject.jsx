@@ -10,6 +10,7 @@ import {
 } from "../services/fileService";
 import { Button, Card } from "../components/ui";
 import { showSuccess, showError } from "../utils/toast";
+import { FiFolderPlus, FiUpload, FiTag, FiInfo, FiX } from "react-icons/fi";
 
 const TAG_OPTIONS = ["Library", "Framework", "API"];
 
@@ -96,16 +97,29 @@ const CreateProject = () => {
       navigate("/dashboard");
     } catch (error) {
       setUploading(false);
-      console.error(error.message);
-      showError("Failed to create project or upload files. Please try again.");
+      const apiDetail =
+        error?.response?.data?.detail || error?.response?.data?.message;
+      const message =
+        apiDetail ||
+        error?.message ||
+        "Failed to create project or upload files. Please try again.";
+      console.error(message);
+      showError(message);
     }
   };
 
   return (
-    <main className="flex items-center justify-center h-full">
-      <Card className="w-full max-w-md">
+    <main className="min-h-screen bg-gray-50 py-10 flex items-start justify-center px-4">
+      <Card className="w-full max-w-2xl">
         <Card.Header>
-          <Card.Title>Create New Project</Card.Title>
+          <div className="flex items-center gap-2">
+            <FiFolderPlus className="text-blue-600 text-xl" />
+            <Card.Title>Create New Project</Card.Title>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Provide a title and description, add optional tags, and upload .py
+            or .zip files.
+          </p>
         </Card.Header>
         <Card.Content>
           <Form
@@ -116,17 +130,19 @@ const CreateProject = () => {
             disabled={uploading}
           />
           {/* Tag selection */}
-          <div className="mt-4">
-            <label className="block mb-2 font-medium">Project Tags</label>
-            <div className="flex flex-wrap gap-2 mb-2">
+          <div className="mt-6">
+            <label className="mb-2 font-medium inline-flex items-center gap-2">
+              <FiTag /> Project Tags
+            </label>
+            <div className="flex flex-wrap gap-2 mb-3">
               {TAG_OPTIONS.map((tag) => (
                 <button
                   key={tag}
                   type="button"
-                  className={`px-3 py-1 rounded border ${
+                  className={`px-3 py-1 rounded-full border text-sm transition ${
                     selectedTags.includes(tag)
                       ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-gray-100 text-gray-700 border-gray-300"
+                      : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
                   }`}
                   onClick={() => handleTagToggle(tag)}
                   disabled={uploading}
@@ -141,7 +157,7 @@ const CreateProject = () => {
                 value={customTag}
                 onChange={(e) => setCustomTag(e.target.value)}
                 placeholder="Add custom tag"
-                className="px-2 py-1 border rounded w-full"
+                className="px-3 py-2 border rounded w-full"
                 disabled={uploading}
               />
               <Button
@@ -158,16 +174,17 @@ const CreateProject = () => {
                 {selectedTags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs flex items-center"
+                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs inline-flex items-center gap-1"
                   >
-                    {tag}
+                    <FiTag /> {tag}
                     <button
                       type="button"
-                      className="ml-2 text-xs text-red-500 hover:underline"
+                      className="ml-1 text-xs text-blue-700 hover:text-blue-900"
                       onClick={() => handleTagToggle(tag)}
                       disabled={uploading}
+                      aria-label={`Remove ${tag}`}
                     >
-                      ✕
+                      <FiX />
                     </button>
                   </span>
                 ))}
@@ -175,27 +192,22 @@ const CreateProject = () => {
             )}
           </div>
           {/* File upload section */}
-          <div className="mt-4">
-            <label className="block mb-2 font-medium">
-              Upload Files (.py or .zip)
+          <div className="mt-6">
+            <label className="mb-2 font-medium inline-flex items-center gap-2">
+              <FiUpload /> Upload Files (.py or .zip)
             </label>
             <input
               type="file"
               multiple
               onChange={handleFileChange}
-              className="block w-full text-sm text-gray-500
-            file:mr-4 file:py-2 file:px-4
-            file:rounded file:border-0
-            file:text-sm file:font-semibold
-            file:bg-blue-50 file:text-blue-700
-            hover:file:bg-blue-100"
+              className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               disabled={uploading}
               accept=".py,.zip"
             />
             {/* Show zip file if selected */}
             {zipFile && (
-              <div className="mt-2 flex items-center justify-between bg-yellow-50 p-2 rounded">
-                <span className="truncate">{zipFile.name}</span>{" "}
+              <div className="mt-3 flex items-center justify-between bg-yellow-50 p-2 rounded border border-yellow-200">
+                <span className="truncate text-sm">{zipFile.name}</span>
                 <Button
                   variant="danger"
                   size="sm"
@@ -208,13 +220,10 @@ const CreateProject = () => {
             )}
             {/* Show other files if selected */}
             {files.length > 0 && (
-              <ul className="mt-2">
+              <ul className="mt-2 space-y-2">
                 {files.map((file, idx) => (
-                  <li
-                    key={idx}
-                    className="flex items-center justify-between mb-1"
-                  >
-                    <span className="truncate">{file.name}</span>{" "}
+                  <li key={idx} className="flex items-center justify-between">
+                    <span className="truncate text-sm">{file.name}</span>
                     <Button
                       variant="danger"
                       size="sm"
@@ -228,9 +237,9 @@ const CreateProject = () => {
               </ul>
             )}
             {/* Note about uploading files later */}
-            <div className="mt-4 p-3 rounded bg-yellow-100 text-yellow-800 text-sm font-normal">
-              <span className="font-bold">NOTE: </span> You can choose to upload
-              files later on.
+            <div className="mt-4 p-3 rounded bg-blue-50 text-blue-800 text-sm border border-blue-200 flex items-start gap-2">
+              <FiInfo className="mt-0.5" />
+              <span>You can choose to upload files later on.</span>
             </div>
           </div>
         </Card.Content>

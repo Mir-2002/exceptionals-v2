@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../context/authContext";
-import { showError, showSuccess } from "../utils/toast";
+import { useAuth } from "../../context/authContext";
+import { showError, showSuccess } from "../../utils/toast";
 import {
   getAllFiles,
   deleteFile,
   cleanupOrphans,
-} from "../services/adminService";
+} from "../../services/adminService";
 
 const AdminFiles = () => {
   const { token } = useAuth();

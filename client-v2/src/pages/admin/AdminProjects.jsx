@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../context/authContext";
-import { showError, showSuccess } from "../utils/toast";
-import { getAllProjects, deleteProject } from "../services/adminService";
+import { useAuth } from "../../context/authContext";
+import { showError, showSuccess } from "../../utils/toast";
+import { getAllProjects, deleteProject } from "../../services/adminService";
 
 const AdminProjects = () => {
   const { token } = useAuth();

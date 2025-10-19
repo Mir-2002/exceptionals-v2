@@ -62,19 +62,24 @@ def extract_py_files_from_zip(zip_bytes) -> list:
                 # Remove excluded dirs from traversal
                 dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
                 for file in files:
-                    if file.endswith(".py"):
-                        abs_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(abs_path, extract_dir)
-                        # Skip files in excluded directories
-                        if any(part in EXCLUDE_DIRS for part in rel_path.split(os.sep)):
-                            continue
+                    if not file.endswith(".py"):
+                        continue
+                    abs_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(abs_path, extract_dir)
+                    # Skip files in excluded directories
+                    if any(part in EXCLUDE_DIRS for part in rel_path.split(os.sep)):
+                        continue
+                    try:
                         with open(abs_path, "r", encoding="utf-8") as f:
                             content = f.read()
-                        parsed = extract_functions_classes_from_content(content)
-                        extracted_files.append({
-                            "filename": rel_path.replace("\\", "/"),
-                            "functions": parsed["functions"],
-                            "classes": parsed["classes"]
-                        })
+                    except Exception:
+                        # Skip files that cannot be decoded
+                        continue
+                    parsed = extract_functions_classes_from_content(content)
+                    extracted_files.append({
+                        "filename": rel_path.replace("\\", "/"),
+                        "functions": parsed["functions"],
+                        "classes": parsed["classes"]
+                    })
     os.remove(tmp_path)
     return extracted_files
