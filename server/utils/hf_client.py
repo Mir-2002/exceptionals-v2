@@ -14,7 +14,7 @@ def _get_hf_config() -> tuple[str, str]:
         raise HFConfigError("HF_ENDPOINT or HF_TOKEN not set in environment.")
     return endpoint, token
 
-async def hf_query_json_async(payload: Dict[str, Any], timeout: int = 300, max_retries: int = 5) -> Any:
+async def hf_query_json_async(payload: Dict[str, Any], timeout: int = 600, max_retries: int = 8) -> Any:
     endpoint, token = _get_hf_config()
     headers = {
         "Accept": "application/json",
@@ -23,38 +23,70 @@ async def hf_query_json_async(payload: Dict[str, Any], timeout: int = 300, max_r
     }
 
     async with httpx.AsyncClient(timeout=timeout) as client:
+        last_error: Optional[Exception] = None
         for attempt in range(max_retries):
             try:
                 resp = await client.post(endpoint, headers=headers, json=payload)
 
+                # Best-effort JSON parse
                 try:
                     data = resp.json()
                 except Exception:
-                    resp.raise_for_status()
-                    return {}
+                    data = None
 
-                if resp.status_code in (502, 503) or "loading" in str(data).lower():
+                # Handle warm-up / loading and transient errors
+                loading_signal = False
+                if data is not None and isinstance(data, (dict, list)):
+                    loading_signal = "loading" in str(data).lower() or "estimated_time" in str(data).lower()
+
+                if resp.status_code in (429, 502, 503) or loading_signal:
                     if attempt < max_retries - 1:
-                        base = 3 * (2 ** attempt)
-                        wait_time = base + random.uniform(0, 2)
+                        base = 5 * (2 ** attempt)  # slower exponential backoff
+                        wait_time = min(base + random.uniform(0, 3), 90)
                         await asyncio.sleep(wait_time)
                         continue
-                    raise httpx.HTTPStatusError(f"HF error: {resp.status_code}", request=resp.request, response=resp)
+                    last_error = httpx.HTTPStatusError(f"HF error: {resp.status_code}", request=resp.request, response=resp)
+                    break
 
                 if resp.is_success:
-                    return data
+                    return data if data is not None else {}
 
-                raise httpx.HTTPStatusError(f"Error: {data}", request=resp.request, response=resp)
+                # Other HTTP errors
+                last_error = httpx.HTTPStatusError(f"Error: {data}", request=resp.request, response=resp)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2 + attempt)
+                    continue
+                break
 
             except (httpx.TimeoutException, httpx.RequestError) as e:
+                last_error = e
                 if attempt < max_retries - 1:
-                    base = 3 * (2 ** attempt)
-                    wait_time = base + random.uniform(0, 2)
+                    base = 5 * (2 ** attempt)
+                    wait_time = min(base + random.uniform(0, 3), 90)
                     await asyncio.sleep(wait_time)
                 else:
-                    raise e
+                    break
 
-    raise httpx.HTTPStatusError(f"Failed after {max_retries} attempts", request=None, response=None)
+        # Graceful warm-up fallback: slow polling for up to ~2 minutes
+        try:
+            for i in range(6):  # 6 polls ~20s apart
+                await asyncio.sleep(20)
+                try:
+                    resp = await client.post(endpoint, headers=headers, json=payload)
+                    if resp.is_success:
+                        try:
+                            return resp.json()
+                        except Exception:
+                            return {}
+                except Exception:
+                    # keep trying until loop finishes
+                    pass
+        except Exception:
+            pass
+
+        if last_error:
+            raise last_error
+        raise httpx.HTTPStatusError(f"Failed after {max_retries} attempts", request=None, response=None)
 
 async def hf_generate_batch_async(inputs: List[str], parameters: Optional[Dict[str, Any]] = None) -> List[str]:
     payload: Dict[str, Any] = {"inputs": inputs}

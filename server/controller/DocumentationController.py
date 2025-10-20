@@ -7,6 +7,7 @@ from utils.doc_templates import render_html, render_markdown, render_pdf
 from bson import ObjectId, Binary
 import asyncio
 from datetime import datetime
+from utils.doc_cleaner import clean_results_docstrings
 
 def normalize_path(p: Optional[str]) -> str:
     # Remove leading './', '/', and 'root/' for consistency
@@ -201,6 +202,11 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
     if not items:
         raise HTTPException(status_code=400, detail="No items available to generate documentation.")
 
+    # Fetch project metadata
+    project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    project_name = (project or {}).get("name") or f"Project {project_id}"
+    project_description = (project or {}).get("description") or None
+
     prompts = [_make_prompt_for_item(it) for it in items]
     outputs: List[str] = []
 
@@ -264,56 +270,62 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
             generated_docstring=str(generated_text).strip()
         ))
 
+    # Clean docstrings to remove special characters/markup
+    results_dicts = [r.dict() for r in results]
+    results_dicts = clean_results_docstrings(results_dicts)
+
     generation_time = time.time() - start_time
 
-    # Format output and save revision
+    # Save revision first to obtain its id for templates
     fmt = (plan.format or "HTML").upper()
-    results_dicts = [r.dict() for r in results]
-
-    if fmt == "MARKDOWN":
-        content = render_markdown(project_id, results_dicts)
-        content_type = "text/markdown"
-        binary = None
-    elif fmt == "PDF":
-        pdf_bytes = render_pdf(project_id, results_dicts)
-        binary = Binary(pdf_bytes) if pdf_bytes is not None else None
-        content = None
-        content_type = "application/pdf"
-    else:
-        content = render_html(project_id, results_dicts)
-        content_type = "text/html"
-        binary = None
 
     # Preferences snapshot for auditing/admin display
-    # Try to fetch the raw saved preferences document for a complete snapshot
     prefs_raw = await db.preferences.find_one({"project_id": project_id})
     if not prefs_raw:
         prefs_raw = await db.project_preferences.find_one({"project_id": project_id})
     if prefs_raw and "_id" in prefs_raw:
         prefs_raw = {k: v for k, v in prefs_raw.items() if k != "_id"}
-    # Fallback to computed preferences if none saved
     if not prefs_raw:
         prefs_raw = await get_project_preferences(db, project_id)
 
     doc_record = {
         "project_id": project_id,
         "format": fmt,
-        "content": content,
-        "content_type": content_type,
-        "binary": binary,
+        "content": None,  # fill after render
+        "content_type": None,
+        "binary": None,
         "results": results_dicts,
         "included_files": plan.included_files,
         "excluded_files": plan.excluded_files,
-        # Keep original float for backwards compatibility
         "created_at": time.time(),
-        # Add ISO8601 timestamp for admin UI
         "created_at_iso": datetime.utcnow().isoformat() + "Z",
-        # Snapshot of preferences and creator metadata
         "preferences_snapshot": prefs_raw,
         "created_by": created_by or None,
         "user_id": (created_by.get("id") if isinstance(created_by, dict) else None),
     }
     inserted = await db.documentations.insert_one(doc_record)
+    revision_id = str(inserted.inserted_id)
+
+    # Render with project metadata and revision id
+    if fmt == "MARKDOWN":
+        content = render_markdown(project_id, results_dicts, project_name=project_name, project_description=project_description, revision_id=revision_id)
+        content_type = "text/markdown"
+        binary = None
+    elif fmt == "PDF":
+        pdf_bytes = render_pdf(project_id, results_dicts, project_name=project_name, project_description=project_description, revision_id=revision_id)
+        binary = Binary(pdf_bytes) if pdf_bytes is not None else None
+        content = None
+        content_type = "application/pdf"
+    else:
+        content = render_html(project_id, results_dicts, project_name=project_name, project_description=project_description, revision_id=revision_id)
+        content_type = "text/html"
+        binary = None
+
+    # Update the inserted record with rendered content
+    await db.documentations.update_one(
+        {"_id": ObjectId(revision_id)},
+        {"$set": {"content": content, "content_type": content_type, "binary": binary}}
+    )
 
     # Mark project as completed once a documentation is generated
     try:
@@ -322,7 +334,6 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
             {"$set": {"status": "completed", "updated_at": datetime.utcnow()}}
         )
     except Exception:
-        # Don't fail generation flow if project status update fails
         pass
 
     return DocumentationGenerationResponse(
@@ -331,6 +342,6 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
         total_items=len(items),
         included_files=plan.included_files,
         excluded_files=plan.excluded_files,
-        results=results,
+        results=[DocumentationResult(**r) for r in results_dicts],
         generation_time_seconds=round(generation_time, 2)
     )

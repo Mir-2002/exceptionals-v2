@@ -16,6 +16,7 @@ import { showSuccess, showError, showWarning } from "../utils/toast";
 import { FaTrashAlt } from "react-icons/fa";
 import { FiFolder, FiUpload, FiPlay, FiArrowLeft } from "react-icons/fi";
 import { listDocumentationRevisions } from "../services/documentationService";
+import { Button } from "../components/ui";
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -278,14 +279,14 @@ const ProjectDetails = () => {
               {node.name}
             </span>
             {!isRoot && (
-              <button
-                type="button"
-                className="ml-2 flex items-center justify-center px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0"
+              <Button
+                size="sm"
+                variant="danger"
                 onClick={() => handleDeleteNode(node, parentPath)}
                 aria-label="Delete"
               >
                 <FaTrashAlt className="mx-auto" />
-              </button>
+              </Button>
             )}
           </div>
           {isOpen &&
@@ -309,14 +310,14 @@ const ProjectDetails = () => {
         >
           📄 {node.name}
         </span>
-        <button
-          type="button"
-          className="ml-2 flex items-center justify-center px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0"
+        <Button
+          size="sm"
+          variant="danger"
           onClick={() => handleDeleteNode(node, parentPath)}
           aria-label="Delete"
         >
           <FaTrashAlt className="mx-auto" />
-        </button>
+        </Button>
       </div>
     );
   };
@@ -352,11 +353,11 @@ const ProjectDetails = () => {
                 IN PROGRESS
               </span>
             ) : project.status.toLowerCase() === "completed" ? (
-              <span className="ml-2 px-2 py-1 rounded bg-green-500 text-white">
+              <span className="ml-2 px-2 py-1 rounded bg-green-500 text-white font-semibold">
                 COMPLETED
               </span>
             ) : (
-              <span className="ml-2 px-2 py-1 rounded bg-gray-500 text-white">
+              <span className="ml-2 px-2 py-1 rounded bg-gray-500 text-white font-semibold">
                 {project.status}
               </span>
             )}
@@ -382,8 +383,8 @@ const ProjectDetails = () => {
         {/* Actions above Upload: View Documentation when exists */}
         {latestRevision?.id && (
           <div className="mb-6">
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700"
+            <Button
+              variant="primary"
               onClick={() =>
                 navigate(
                   `/projects/${projectId}/documentation/${latestRevision.id}`
@@ -391,7 +392,7 @@ const ProjectDetails = () => {
               }
             >
               View Documentation
-            </button>
+            </Button>
           </div>
         )}
 
@@ -421,26 +422,27 @@ const ProjectDetails = () => {
                   <span className="truncate flex-grow min-w-0 break-all">
                     {file.name}
                   </span>
-                  <button
-                    type="button"
-                    className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0"
+                  <Button
+                    size="sm"
+                    variant="danger"
                     onClick={() =>
                       setFiles((prev) => prev.filter((_, i) => i !== idx))
                     }
                   >
                     Remove
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
           )}
-          <button
-            className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          <Button
+            className="mt-2"
+            variant="primary"
             onClick={handleUpload}
             disabled={uploading || files.length === 0}
           >
             {uploading ? "Uploading..." : "Upload Files"}
-          </button>
+          </Button>
         </div>
 
         {/* File Tree */}
@@ -464,18 +466,21 @@ const ProjectDetails = () => {
         <div className="flex justify-between items-center mt-6">
           {/* Left side: Back & Start Documentation */}
           <div className="flex gap-2 flex-wrap">
-            <button
-              className="px-4 py-2 bg-gray-300 rounded font-semibold  hover:bg-gray-400 inline-flex items-center gap-2"
+            <Button
+              size="md"
+              variant="secondary"
+              className="inline-flex items-center gap-2"
               onClick={() => navigate("/dashboard")}
             >
               <FiArrowLeft /> Back
-            </button>
-            <button
-              className={`px-4 py-2 rounded text-white inline-flex items-center gap-2 font-semibold ${
+            </Button>
+            <Button
+              size="md"
+              variant={
                 fileTree && fileTree.children && fileTree.children.length > 0
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-gray-400 cursor-not-allowed"
-              }`}
+                  ? "success"
+                  : "outline"
+              }
               onClick={() =>
                 fileTree && fileTree.children && fileTree.children.length > 0
                   ? navigate(`/projects/${projectId}/preferences`)
@@ -484,18 +489,21 @@ const ProjectDetails = () => {
               disabled={
                 !(fileTree && fileTree.children && fileTree.children.length > 0)
               }
+              className="inline-flex items-center gap-2"
             >
               <FiPlay /> Start Documentation
-            </button>
+            </Button>
           </div>
           {/* Right side: Delete Project */}
-          <button
-            className="px-4 py-2 bg-red-500 text-white rounded font-semibold  hover:bg-red-600 disabled:opacity-50"
+          <Button
+            size="md"
+            variant="danger"
+            className="inline-flex items-center gap-2"
             onClick={handleDelete}
             disabled={deleting}
           >
             {deleting ? "Deleting..." : "Delete Project"}
-          </button>
+          </Button>
         </div>
       </div>
 

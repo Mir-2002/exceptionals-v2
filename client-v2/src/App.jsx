@@ -22,6 +22,7 @@ import GenerateDocumentation from "./pages/GenerateDocumentation";
 import HFDemoTest from "./pages/HFDemoTest";
 import DocumentationDetails from "./pages/DocumentationDetails";
 import AdminDocDetails from "./pages/admin/AdminDocDetails";
+import DocumentationBrowser from "./pages/DocumentationBrowser";
 
 function App() {
   return (
@@ -72,6 +73,10 @@ function App() {
               <Route
                 path="/projects/:projectId/documentation/:revisionId"
                 element={<DocumentationDetails />}
+              />
+              <Route
+                path="/projects/:projectId/documentation/browser"
+                element={<DocumentationBrowser />}
               />
               <Route path="/debug/hf-demo" element={<HFDemoTest />} />
             </Route>

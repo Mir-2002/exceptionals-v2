@@ -7,6 +7,7 @@ import {
   cleanupOrphans,
 } from "../../services/adminService";
 import { useNavigate } from "react-router-dom";
+import { Button, Card, LoadingSpinner } from "../../components/ui";
 
 const AdminFiles = () => {
   const { token } = useAuth();
@@ -51,59 +52,67 @@ const AdminFiles = () => {
     }
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading)
+    return (
+      <div className="p-6">
+        <LoadingSpinner />
+      </div>
+    );
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Manage Files</h2>
         <div className="flex items-center gap-2">
-          <button
-            className="px-3 py-2 text-sm border rounded bg-white hover:bg-gray-50"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => navigate("/admin")}
           >
             ← Back
-          </button>
-          <button
-            className="px-3 py-2 bg-yellow-600 text-white rounded"
-            onClick={onCleanup}
-          >
+          </Button>
+          <Button variant="warning" onClick={onCleanup}>
             Cleanup Orphaned Files
-          </button>
+          </Button>
         </div>
       </div>
-      <table className="w-full border">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="p-2 text-left">ID</th>
-            <th className="p-2 text-left">Project</th>
-            <th className="p-2 text-left">Filename</th>
-            <th className="p-2 text-left">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {files.map((f) => (
-            <tr key={f.id} className="border-t">
-              <td className="p-2">{f.id}</td>
-              <td className="p-2">
-                <div className="text-sm text-gray-800">
-                  {f.project_name || "(unknown)"}
-                </div>
-                <div className="text-xs text-gray-500">{f.project_id}</div>
-              </td>
-              <td className="p-2">{f.filename}</td>
-              <td className="p-2">
-                <button
-                  className="px-2 py-1 bg-red-600 text-white rounded"
-                  onClick={() => onDelete(f.id)}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Card className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="p-2 text-left">ID</th>
+                <th className="p-2 text-left">Project</th>
+                <th className="p-2 text-left">Filename</th>
+                <th className="p-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {files.map((f) => (
+                <tr key={f.id} className="border-t">
+                  <td className="p-2">{f.id}</td>
+                  <td className="p-2">
+                    <div className="text-sm text-gray-800">
+                      {f.project_name || "(unknown)"}
+                    </div>
+                    <div className="text-xs text-gray-500">{f.project_id}</div>
+                  </td>
+                  <td className="p-2">{f.filename}</td>
+                  <td className="p-2">
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => onDelete(f.id)}
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </main>
   );
 };

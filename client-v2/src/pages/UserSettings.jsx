@@ -3,7 +3,7 @@ import { useAuth } from "../context/authContext";
 import { getUserById, updateUser, deleteUser } from "../services/userService";
 import { showSuccess, showError } from "../utils/toast";
 import { useNavigate } from "react-router-dom";
-import { Button, Card } from "../components/ui";
+import { Button, Card, LoadingSpinner } from "../components/ui";
 import {
   FiUser,
   FiMail,
@@ -73,7 +73,12 @@ const UserSettings = () => {
     }
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading)
+    return (
+      <div className="p-8">
+        <LoadingSpinner />
+      </div>
+    );
 
   return (
     <main className="flex justify-center items-center min-h-screen bg-gray-50 px-4">

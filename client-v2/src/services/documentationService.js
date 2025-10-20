@@ -26,11 +26,19 @@ export async function getDocumentationPlan(projectId, token) {
 }
 
 export async function generateDocumentation(projectId, token, opts = {}) {
-  const { batchSize } = opts;
+  const { batchSize, temperature, topP, topK } = opts;
   try {
+    const body = {
+      clean_up_tokenization_spaces: true,
+      generate_parameters: {
+        temperature: typeof temperature === "number" ? temperature : undefined,
+        top_p: typeof topP === "number" ? topP : undefined,
+        top_k: typeof topK === "number" ? topK : undefined,
+      },
+    };
     const res = await axios.post(
       `${API_URL}/documentation/projects/${projectId}/generate`,
-      {},
+      body,
       {
         headers: {
           Authorization: `Bearer ${token}`,

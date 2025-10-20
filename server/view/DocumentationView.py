@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from fastapi.responses import JSONResponse, Response
 from controller.DocumentationController import plan_documentation_generation, generate_documentation_with_hf
 from model.DocumentationModel import DocumentationPlan, DocumentationGenerationResponse, SingleDocstringRequest, SingleDocstringResponse, DemoBatchRequest, DemoBatchResponse, DemoGeneratedItem
@@ -31,6 +31,7 @@ async def get_documentation_plan(project_id: str, db=Depends(get_db), current_us
 async def generate_documentation(
     project_id: str,
     batch_size: int = 4,
+    opts: dict = Body(default={}),
     db=Depends(get_db),
     current_user=Depends(get_current_user)
 ):
@@ -44,7 +45,17 @@ async def generate_documentation(
         "email": getattr(current_user, 'email', None),
         "is_admin": bool(getattr(current_user, 'is_admin', False)),
       }
-      resp = await generate_documentation_with_hf(project_id, db, batch_size=batch_size, created_by=created_by)
+      params = None
+      if isinstance(opts, dict):
+        gp = opts.get("generate_parameters") or opts.get("parameters") or None
+        if isinstance(gp, dict):
+          # Map into HF parameters; include both direct keys and nested for compatibility
+          params = {k: v for k, v in gp.items() if v is not None}
+          params["generate_parameters"] = {k: v for k, v in gp.items() if v is not None}
+          # Optional HF flags
+          if "clean_up_tokenization_spaces" in opts:
+            params["clean_up_tokenization_spaces"] = bool(opts.get("clean_up_tokenization_spaces"))
+      resp = await generate_documentation_with_hf(project_id, db, batch_size=batch_size, parameters=params, created_by=created_by)
       logger.info(f"[GEN] Completed generation for project={project_id}, items={len(resp.results)}")
       return resp
     except Exception as e:

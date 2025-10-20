@@ -12,7 +12,7 @@ import { normalizePath, basename } from "../utils/pathUtils";
 import { showError, showSuccess } from "../utils/toast";
 import { updateProject } from "../services/projectService";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
-import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 const SectionHeader = ({ title, extra }) => (
   <div className="flex items-center justify-between mb-3">
@@ -31,6 +31,10 @@ export default function GenerateDocumentation() {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [genLoading, setGenLoading] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advTemperature, setAdvTemperature] = useState(0.7);
+  const [advTopP, setAdvTopP] = useState(0.9);
+  const [advTopK, setAdvTopK] = useState(50);
 
   useEffect(() => {
     let mounted = true;
@@ -79,12 +83,37 @@ export default function GenerateDocumentation() {
     [getFunctionClassCounts]
   );
 
+  // Build segregated groups for items (must be declared before any early returns)
+  const items = plan?.items || [];
+  const functionItems = useMemo(
+    () => items.filter((i) => i.type === "function"),
+    [items]
+  );
+  const classItems = useMemo(
+    () => items.filter((i) => i.type === "class"),
+    [items]
+  );
+  const methodsByClassKey = useMemo(() => {
+    const map = {};
+    items.forEach((i) => {
+      if (i.type === "method") {
+        const key = `${i.file}::${i.parent_class}`;
+        if (!map[key]) map[key] = [];
+        map[key].push(i);
+      }
+    });
+    return map;
+  }, [items]);
+
   const handleGenerate = async () => {
     if (!projectId || !token) return;
     setGenLoading(true);
     try {
       const res = await generateDocumentation(projectId, token, {
         batchSize: 2,
+        temperature: advTemperature,
+        topP: advTopP,
+        topK: advTopK,
       });
       showSuccess(
         `Generated ${res?.results?.length || 0} docstrings in ${
@@ -113,7 +142,7 @@ export default function GenerateDocumentation() {
   if (loading) {
     return (
       <div className="p-6">
-        <LoadingSpinner text="Loading documentation plan..." />
+        <LoadingSpinner text="Loading documentation plan… The model may be cold-starting from scale-to-zero; first request can take up to a couple of minutes." />
       </div>
     );
   }
@@ -162,99 +191,264 @@ export default function GenerateDocumentation() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatsCard title="Format" value={plan.format} variant="blue" />
-        <StatsCard title="Items" value={plan.total_items} variant="green" />
-        <StatsCard
-          title="Included Files"
-          value={(plan.included_files || []).length}
-          variant="purple"
-        />
-        <StatsCard
-          title="Excluded Files"
-          value={(plan.excluded_files || []).length}
-          variant="yellow"
-        />
-      </div>
-
-      {/* Overview */}
+      {/* Advanced Generation Options */}
       <Card>
         <Card.Header>
-          <Card.Title>Overview</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <div className="font-semibold mb-2">Files</div>
-              <div>Included: {(plan.included_files || []).length}</div>
-              <div>Excluded: {(plan.excluded_files || []).length}</div>
-            </div>
-            <div>
-              <div className="font-semibold mb-2">Functions & Classes</div>
-              <div>Functions (incl): {counts.includedFunctions}</div>
-              <div>Classes (incl): {counts.includedClasses}</div>
-            </div>
-            <div>
-              <div className="font-semibold mb-2">Methods</div>
-              <div>Methods (incl): {counts.includedMethods}</div>
-            </div>
+          <div className="flex items-center justify-between w-full">
+            <Card.Title>Advanced Generation Options</Card.Title>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowAdvanced((s) => !s)}
+            >
+              {showAdvanced ? "Hide" : "Show"}
+            </Button>
           </div>
-        </Card.Content>
+          <p className="text-xs text-gray-600 mt-1">
+            We recommend defaults for best quality. Adjust only if you
+            understand sampling. Higher temperature increases creativity; Top
+            P/Top K control sampling diversity.
+          </p>
+        </Card.Header>
+        {showAdvanced && (
+          <Card.Content>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Temperature (0.0–2.0)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={advTemperature}
+                  onChange={(e) =>
+                    setAdvTemperature(
+                      Math.max(0, Math.min(2, Number(e.target.value)))
+                    )
+                  }
+                  className="w-full border rounded px-2 py-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Controls randomness. Lower is deterministic, higher is more
+                  creative.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Top P (0.0–1.0)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={advTopP}
+                  onChange={(e) =>
+                    setAdvTopP(Math.max(0, Math.min(1, Number(e.target.value))))
+                  }
+                  className="w-full border rounded px-2 py-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Nucleus sampling. Chooses from the smallest set of tokens
+                  whose cumulative probability exceeds P.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Top K (0–100)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={advTopK}
+                  onChange={(e) =>
+                    setAdvTopK(
+                      Math.max(0, Math.min(100, Number(e.target.value)))
+                    )
+                  }
+                  className="w-full border rounded px-2 py-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Limits sampling pool to top-K most likely tokens at each step.
+                </p>
+              </div>
+            </div>
+          </Card.Content>
+        )}
       </Card>
 
-      {/* Planned Items grid */}
+      {/* Enlarged Counters (replaces Overview) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-5 rounded border bg-blue-50 text-blue-800 border-blue-200">
+          <div className="text-sm">Format</div>
+          <div className="text-3xl font-bold leading-tight">{plan.format}</div>
+        </div>
+        <div className="p-5 rounded border bg-green-50 text-green-800 border-green-200">
+          <div className="text-sm">Items</div>
+          <div className="text-3xl font-bold leading-tight">
+            {plan.total_items}
+          </div>
+        </div>
+        <div className="p-5 rounded border bg-purple-50 text-purple-800 border-purple-200">
+          <div className="text-sm">Included Files</div>
+          <div className="text-3xl font-bold leading-tight">
+            {(plan.included_files || []).length}
+          </div>
+        </div>
+        <div className="p-5 rounded border bg-yellow-50 text-yellow-700 border-yellow-200">
+          <div className="text-sm">Excluded Files</div>
+          <div className="text-3xl font-bold leading-tight">
+            {(plan.excluded_files || []).length}
+          </div>
+        </div>
+      </div>
+
+      {/* Remove Overview card */}
+      {/* Planned Items - Segregated */}
       <Card>
         <Card.Header>
           <Card.Title>Planned Items</Card.Title>
         </Card.Header>
         <Card.Content>
           <div className="text-sm text-gray-600 mb-4">
-            These are the functions, classes, and methods that will be sent to
-            the model.
+            These are the functions and classes (with methods) that will be sent
+            to the model.
           </div>
           {(plan.items || []).length === 0 ? (
             <div className="text-gray-500">
               No items to generate based on your preferences.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {(plan.items || []).map((it, idx) => {
-                const typeColor =
-                  it.type === "function"
-                    ? "bg-green-100 text-green-800 border-green-200"
-                    : it.type === "class"
-                    ? "bg-blue-100 text-blue-800 border-blue-200"
-                    : "bg-yellow-100 text-yellow-800 border-yellow-200";
-                return (
-                  <div
-                    key={`${it.file}-${it.type}-${it.name}-${idx}`}
-                    className="border rounded-lg p-3 bg-white"
-                  >
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span
-                        className={`px-2 py-0.5 text-xs rounded border uppercase ${typeColor}`}
+            <div className="space-y-8">
+              {/* Functions */}
+              <div>
+                <h4 className="font-semibold text-green-700 mb-3">Functions</h4>
+                {functionItems.length === 0 ? (
+                  <div className="text-gray-400 text-sm">No functions.</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {functionItems.map((it, idx) => (
+                      <div
+                        key={`${it.file}-${it.name}-${idx}`}
+                        className="border rounded-lg p-3 bg-white"
                       >
-                        {it.type}
-                      </span>
-                      <span className="font-mono text-sm break-all font-semibold">
-                        {it.name}
-                        {it.parent_class ? ` (class ${it.parent_class})` : ""}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 break-all mb-2">
-                      {it.file}
-                    </div>
-                    <SyntaxHighlighter
-                      language="python"
-                      style={atomOneLight}
-                      customStyle={{ maxHeight: 192, fontSize: "12px" }}
-                    >
-                      {it.code}
-                    </SyntaxHighlighter>
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded border uppercase bg-green-100 text-green-800 border-green-200">
+                            function
+                          </span>
+                          <span className="font-mono text-sm break-all font-semibold">
+                            {it.name}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 break-all mb-2">
+                          {it.file}
+                        </div>
+                        <SyntaxHighlighter
+                          language="python"
+                          style={docco}
+                          customStyle={{
+                            height: 192,
+                            overflow: "auto",
+                            fontSize: "12px",
+                          }}
+                          wrapLines
+                          wrapLongLines
+                        >
+                          {it.code}
+                        </SyntaxHighlighter>
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
+                )}
+              </div>
+
+              {/* Classes with Methods */}
+              <div>
+                <h4 className="font-semibold text-blue-700 mb-3">Classes</h4>
+                {classItems.length === 0 ? (
+                  <div className="text-gray-400 text-sm">No classes.</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {classItems.map((cls, idx) => {
+                      const mkey = `${cls.file}::${cls.name}`;
+                      const methods = methodsByClassKey[mkey] || [];
+                      return (
+                        <div
+                          key={`${cls.file}-${cls.name}-${idx}`}
+                          className="border rounded-lg p-3 bg-white"
+                        >
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded border uppercase bg-blue-100 text-blue-800 border-blue-200">
+                              class
+                            </span>
+                            <span className="font-mono text-sm break-all font-semibold">
+                              {cls.name}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-500 break-all mb-2">
+                            {cls.file}
+                          </div>
+                          <SyntaxHighlighter
+                            language="python"
+                            style={docco}
+                            customStyle={{
+                              height: 192,
+                              overflow: "auto",
+                              fontSize: "12px",
+                            }}
+                            wrapLines
+                            wrapLongLines
+                          >
+                            {cls.code}
+                          </SyntaxHighlighter>
+
+                          {methods.length > 0 && (
+                            <div className="mt-3">
+                              <div className="font-semibold text-purple-700 mb-2">
+                                Methods
+                              </div>
+                              <div className="space-y-2">
+                                {methods.map((m, midx) => (
+                                  <div
+                                    key={`${m.file}-${m.parent_class}-${m.name}-${midx}`}
+                                    className="border rounded p-2 bg-gray-50"
+                                  >
+                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                      <span className="px-2 py-0.5 text-xs font-semibold rounded border uppercase bg-purple-100 text-purple-800 border-purple-200">
+                                        method
+                                      </span>
+                                      <span className="font-mono text-xs break-all font-semibold">
+                                        {m.name}
+                                      </span>
+                                    </div>
+                                    <SyntaxHighlighter
+                                      language="python"
+                                      style={docco}
+                                      customStyle={{
+                                        height: 160,
+                                        overflow: "auto",
+                                        fontSize: "12px",
+                                      }}
+                                      wrapLines
+                                      wrapLongLines
+                                    >
+                                      {m.code}
+                                    </SyntaxHighlighter>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </Card.Content>
