@@ -95,7 +95,15 @@ export const PreferenceProvider = ({ children }) => {
   );
 
   const getIncludedFilesData = useCallback(
-    () => allFilesData.filter((f) => isFileIncluded(f.name, f.path)),
+    () =>
+      allFilesData.filter((f) => {
+        const path = normalizePath(
+          f.path || f.filename || f.file_name || f.name || ""
+        );
+        const displayName =
+          f.name || f.filename || f.file_name || basename(path);
+        return isFileIncluded(displayName, path || f.path || displayName);
+      }),
     [allFilesData, isFileIncluded]
   );
 
@@ -111,11 +119,12 @@ export const PreferenceProvider = ({ children }) => {
   }, [getIncludedFilesData]);
   const getPerFileEntry = useCallback(
     (file) => {
-      const keyPath = normalizePath(file?.path || file?.name || "");
+      const keyPath = normalizePath(
+        file?.path || file?.filename || file?.file_name || file?.name || ""
+      );
       const list = preferences?.per_file_exclusion || [];
 
-      // Use robust matching, not strict equality.
-      // This finds the entry even if path prefixes are different.
+      // Robust match by full path equivalence or basename
       return (
         list.find((e) => pathLikeEquals(e?.filename, keyPath)) ||
         list.find((e) => basename(e?.filename) === basename(keyPath))
@@ -138,16 +147,19 @@ export const PreferenceProvider = ({ children }) => {
       totalFunctions += funcs.length;
       totalClasses += classes.length;
 
-      // Count methods from classes
       classes.forEach((cls) => {
         const methods = cls.methods || [];
         totalMethods += methods.length;
       });
 
-      const entry = getPerFileEntry(f);
-      const excludedFns = entry?.exclude_functions || [];
-      const excludedCls = entry?.exclude_classes || [];
-      const excludedMethods = entry?.exclude_methods || [];
+      const entry = getPerFileEntry(f) || {
+        exclude_functions: [],
+        exclude_classes: [],
+        exclude_methods: [],
+      };
+      const excludedFns = entry.exclude_functions || [];
+      const excludedCls = entry.exclude_classes || [];
+      const excludedMethods = entry.exclude_methods || [];
 
       includedFunctions += funcs.filter(
         (fn) => !excludedFns.includes(fn.name)
@@ -156,7 +168,6 @@ export const PreferenceProvider = ({ children }) => {
         (cls) => !excludedCls.includes(cls.name)
       ).length;
 
-      // Count included methods
       classes.forEach((cls) => {
         if (!excludedCls.includes(cls.name)) {
           const methods = cls.methods || [];

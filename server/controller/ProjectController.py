@@ -81,7 +81,14 @@ async def get_user_projects(user_id: str, db):
             detail="Invalid user ID."
         )
     try:
-        projects = await db.projects.find({"user_id": user_id}).to_list(length=None)
+        # Some historical records might have user_id stored as ObjectId string or actual ObjectId
+        user_oid = None
+        if ObjectId.is_valid(user_id):
+            user_oid = ObjectId(user_id)
+        query = {"$or": [{"user_id": user_id}]}
+        if user_oid is not None:
+            query["$or"].append({"user_id": user_oid})
+        projects = await db.projects.find(query).to_list(length=None)
         # Return empty array instead of 404
         return [ProjectResponse(**project) for project in projects]
     except Exception as e:
@@ -136,13 +143,16 @@ async def delete_project(project_id: str, db):
     
     try:
         # 1. Delete all associated files from the 'files' collection
-        # The project_id is stored as a string in the files collection
         await db.files.delete_many({"project_id": project_id})
 
-        # 2. Delete associated preferences from the 'preferences' collection
+        # 2. Delete associated preferences (both current and legacy collections if any)
         await db.preferences.delete_one({"project_id": project_id})
+        await db.project_preferences.delete_many({"project_id": project_id})
 
-        # 3. Delete the project itself from the 'projects' collection
+        # 3. Delete all documentation revisions for this project
+        await db.documentations.delete_many({"project_id": project_id})
+
+        # 4. Delete the project itself
         result = await db.projects.delete_one({"_id": project_oid})
         
         if result.deleted_count == 0:
@@ -150,7 +160,7 @@ async def delete_project(project_id: str, db):
                 status_code=400,
                 detail="Failed to delete the project."
             )
-        return {"detail": "Project and all associated files and preferences deleted successfully."}
+        return {"detail": "Project and all associated files, preferences, and documentations deleted successfully."}
     except Exception as e:
         raise HTTPException(
             status_code=500,

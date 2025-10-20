@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/authContext";
 import { showError, showSuccess } from "../../utils/toast";
 import { getAllProjects, deleteProject } from "../../services/adminService";
+import { useNavigate } from "react-router-dom";
 
 const AdminProjects = () => {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +41,15 @@ const AdminProjects = () => {
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Manage Projects</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold">Manage Projects</h2>
+        <button
+          className="px-3 py-2 text-sm border rounded bg-white hover:bg-gray-50"
+          onClick={() => navigate("/admin")}
+        >
+          ← Back
+        </button>
+      </div>
       <table className="w-full border">
         <thead>
           <tr className="bg-gray-100">

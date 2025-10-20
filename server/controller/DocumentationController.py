@@ -1,10 +1,12 @@
 from typing import List, Dict, Optional, Set
 from fastapi import HTTPException
 from model.DocumentationModel import DocumentationPlan, DocstringItem, DocumentationResult, DocumentationGenerationResponse
-from utils.hf_client import hf_generate_batch
+from utils.hf_client import hf_generate_batch_async
 import time
 from utils.doc_templates import render_html, render_markdown, render_pdf
 from bson import ObjectId, Binary
+import asyncio
+from datetime import datetime
 
 def normalize_path(p: Optional[str]) -> str:
     # Remove leading './', '/', and 'root/' for consistency
@@ -190,66 +192,67 @@ def _make_prompt_for_item(it: DocstringItem) -> str:
 
 Docstring:"""
 
-async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 4, parameters: dict = None) -> DocumentationGenerationResponse:
-    """
-    Generate docstrings for all items in a project using the HF endpoint.
-    Batches requests to avoid overwhelming the endpoint and manages cold starts.
-    """
+async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 4, parameters: dict = None, created_by: Optional[dict] = None) -> DocumentationGenerationResponse:
     start_time = time.time()
-    
-    # Get the documentation plan
+
     plan = await plan_documentation_generation(project_id, db)
     items = plan.items or []
-    
+
     if not items:
         raise HTTPException(status_code=400, detail="No items available to generate documentation.")
-    
-    # Create prompts for all items
+
     prompts = [_make_prompt_for_item(it) for it in items]
     outputs: List[str] = []
-    
-    # Default parameters for generation
+
     default_params = {
-        "max_length": 128,  # Matches your handler's MAX_OUTPUT_LENGTH
+        "max_length": 128,
         "temperature": 0.7,
         "do_sample": True,
     }
     if parameters:
         default_params.update(parameters)
-    
-    # Process in batches to respect endpoint limits and cold start handling
-    for i in range(0, len(prompts), batch_size):
-        batch = prompts[i:i + batch_size]
-        try:
-            batch_outputs = hf_generate_batch(batch, parameters=default_params)
-            outputs.extend(batch_outputs)
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Model generation failed: {str(e)}")
-    
-    # Fallback: if HF returns an unexpected number of outputs, retry one-by-one
+
+    # Limit concurrency (e.g. max 3 parallel HF requests)
+    semaphore = asyncio.Semaphore(3)
+
+    async def generate_batch(batch):
+        async with semaphore:
+            return await hf_generate_batch_async(batch, parameters=default_params)
+
+    # Create batched tasks
+    tasks = [
+        generate_batch(prompts[i:i + batch_size])
+        for i in range(0, len(prompts), batch_size)
+    ]
+
+    try:
+        all_outputs = await asyncio.gather(*tasks)
+        for batch_output in all_outputs:
+            outputs.extend(batch_output)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Model generation failed: {str(e)}")
+
+    # Fallback if output count mismatched
     if len(outputs) != len(items):
         fallback_outputs: List[str] = []
         for p in prompts:
             try:
-                single = hf_generate_batch([p], parameters=default_params)
+                single = await hf_generate_batch_async([p], parameters=default_params)
                 if isinstance(single, list) and len(single) > 0:
                     fallback_outputs.append(str(single[0]).strip())
                 else:
                     fallback_outputs.append("")
             except Exception:
                 fallback_outputs.append("")
-            # small delay to be polite with the endpoint
-            time.sleep(0.1)
+            await asyncio.sleep(0.1)
         outputs = fallback_outputs
-    
-    # If still mismatched, return an explicit 502
+
     if len(outputs) != len(items):
         raise HTTPException(
             status_code=502,
             detail=f"Mismatch in generation results: expected {len(items)}, got {len(outputs)}"
         )
-    
-    # Create structured results
+
     results = []
     for item, generated_text in zip(items, outputs):
         results.append(DocumentationResult(
@@ -260,23 +263,12 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
             original_code=item.code,
             generated_docstring=str(generated_text).strip()
         ))
-    
+
     generation_time = time.time() - start_time
-    
-    # Persist a rendered document as a revision
+
+    # Format output and save revision
     fmt = (plan.format or "HTML").upper()
-    # Prepare results as plain dicts for storage
-    results_dicts = [
-        {
-            "name": r.name,
-            "type": r.type,
-            "file": r.file,
-            "parent_class": r.parent_class,
-            "original_code": r.original_code,
-            "generated_docstring": r.generated_docstring,
-        }
-        for r in results
-    ]
+    results_dicts = [r.dict() for r in results]
 
     if fmt == "MARKDOWN":
         content = render_markdown(project_id, results_dicts)
@@ -287,24 +279,51 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
         binary = Binary(pdf_bytes) if pdf_bytes is not None else None
         content = None
         content_type = "application/pdf"
-    else:  # HTML default
+    else:
         content = render_html(project_id, results_dicts)
         content_type = "text/html"
         binary = None
+
+    # Preferences snapshot for auditing/admin display
+    # Try to fetch the raw saved preferences document for a complete snapshot
+    prefs_raw = await db.preferences.find_one({"project_id": project_id})
+    if not prefs_raw:
+        prefs_raw = await db.project_preferences.find_one({"project_id": project_id})
+    if prefs_raw and "_id" in prefs_raw:
+        prefs_raw = {k: v for k, v in prefs_raw.items() if k != "_id"}
+    # Fallback to computed preferences if none saved
+    if not prefs_raw:
+        prefs_raw = await get_project_preferences(db, project_id)
 
     doc_record = {
         "project_id": project_id,
         "format": fmt,
         "content": content,
         "content_type": content_type,
-        "binary": binary,  # store bytes for PDF as BSON Binary
+        "binary": binary,
         "results": results_dicts,
         "included_files": plan.included_files,
         "excluded_files": plan.excluded_files,
+        # Keep original float for backwards compatibility
         "created_at": time.time(),
+        # Add ISO8601 timestamp for admin UI
+        "created_at_iso": datetime.utcnow().isoformat() + "Z",
+        # Snapshot of preferences and creator metadata
+        "preferences_snapshot": prefs_raw,
+        "created_by": created_by or None,
+        "user_id": (created_by.get("id") if isinstance(created_by, dict) else None),
     }
     inserted = await db.documentations.insert_one(doc_record)
-    revision_id = str(inserted.inserted_id)
+
+    # Mark project as completed once a documentation is generated
+    try:
+        await db.projects.update_one(
+            {"_id": ObjectId(project_id)},
+            {"$set": {"status": "completed", "updated_at": datetime.utcnow()}}
+        )
+    except Exception:
+        # Don't fail generation flow if project status update fails
+        pass
 
     return DocumentationGenerationResponse(
         project_id=project_id,

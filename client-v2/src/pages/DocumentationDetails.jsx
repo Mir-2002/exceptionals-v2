@@ -7,6 +7,8 @@ import {
   downloadDocumentationRevision,
 } from "../services/documentationService";
 import { updateProject } from "../services/projectService";
+import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
+import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 export default function DocumentationDetails() {
   const { projectId, revisionId } = useParams();
@@ -124,25 +126,36 @@ export default function DocumentationDetails() {
   const fmt = (doc.format || "HTML").toUpperCase();
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex gap-2 mb-2">
-        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
-          Back to Dashboard
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() => navigate(`/projects/${projectId}/preferences`)}
-        >
-          Regenerate
-        </Button>
-        <Button variant="primary" onClick={onDownload} disabled={downloading}>
-          {downloading ? "Downloading..." : "Download"}
-        </Button>
+    <div className="p-6 space-y-4 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Documentation</h2>
+          <div className="text-sm text-gray-500">Revision: {doc.id}</div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`/projects/${projectId}`)}
+          >
+            Back to Project
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`/projects/${projectId}/preferences`)}
+          >
+            Regenerate
+          </Button>
+          <Button variant="primary" onClick={onDownload} disabled={downloading}>
+            {downloading ? "Downloading..." : "Download"}
+          </Button>
+        </div>
       </div>
 
+      {/* Content Viewer */}
       <Card>
         <Card.Header>
-          <Card.Title>Documentation ({fmt})</Card.Title>
+          <Card.Title>Rendered Output ({fmt})</Card.Title>
         </Card.Header>
         <Card.Content>
           {fmt === "PDF" ? (
@@ -158,9 +171,13 @@ export default function DocumentationDetails() {
               </div>
             )
           ) : fmt === "MARKDOWN" ? (
-            <pre className="bg-gray-50 p-3 rounded overflow-auto max-h-[75vh] whitespace-pre-wrap">
+            <SyntaxHighlighter
+              language="markdown"
+              style={atomOneLight}
+              customStyle={{ maxHeight: "75vh" }}
+            >
               {doc.content}
-            </pre>
+            </SyntaxHighlighter>
           ) : (
             <iframe
               title="doc-html"
@@ -170,6 +187,38 @@ export default function DocumentationDetails() {
           )}
         </Card.Content>
       </Card>
+
+      {/* Items Summary Grid */}
+      {Array.isArray(doc.results) && doc.results.length > 0 && (
+        <Card>
+          <Card.Header>
+            <Card.Title>Items Overview</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {doc.results.map((r, idx) => (
+                <div key={idx} className="border rounded p-3 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2 py-0.5 text-xs rounded bg-gray-100 border uppercase">
+                      {r.type}
+                    </span>
+                    <span className="font-mono text-sm break-all font-semibold">
+                      {r.name}
+                      {r.parent_class ? ` (class ${r.parent_class})` : ""}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 break-all mb-2">
+                    {r.file}
+                  </div>
+                  <pre className="bg-gray-50 rounded p-2 text-xs overflow-auto max-h-40 whitespace-pre-wrap">
+                    {r.generated_docstring}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          </Card.Content>
+        </Card>
+      )}
     </div>
   );
 }

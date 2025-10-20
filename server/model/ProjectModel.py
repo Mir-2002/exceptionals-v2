@@ -7,7 +7,7 @@ from bson import ObjectId
 from utils.custom_type import PyObjectId
 
 class ProjectStatus(str, Enum):
-    COMPLETE = "complete"
+    COMPLETED = "completed"
     IN_PROGRESS = "in_progress"
     EMPTY = "empty"
     
@@ -52,6 +52,14 @@ class ProjectResponse(ProjectBase):
         # Convert _id to id and remove sensitive fields if present
         if "_id" in data:
             data["id"] = str(data["_id"])
+        # Normalize status variants from legacy values
+        status = data.get("status")
+        if isinstance(status, str):
+            s = status.strip().lower()
+            if s == "complete":
+                data["status"] = "completed"
+            elif s in ("in-progress", "inprogress"):
+                data["status"] = "in_progress"
         data.pop("_id", None)
         return data
     

@@ -15,6 +15,7 @@ import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { showSuccess, showError, showWarning } from "../utils/toast";
 import { FaTrashAlt } from "react-icons/fa";
 import { FiFolder, FiUpload, FiPlay, FiArrowLeft } from "react-icons/fi";
+import { listDocumentationRevisions } from "../services/documentationService";
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -75,6 +76,19 @@ const ProjectDetails = () => {
   useEffect(() => {
     fetchProject();
     fetchFileTree();
+  }, [projectId, token]);
+
+  // Track latest documentation revision
+  const [latestRevision, setLatestRevision] = useState(null);
+  useEffect(() => {
+    const loadRevisions = async () => {
+      try {
+        const data = await listDocumentationRevisions(projectId, token);
+        const latest = data?.revisions?.[0];
+        setLatestRevision(latest || null);
+      } catch {}
+    };
+    if (projectId && token) loadRevisions();
   }, [projectId, token]);
 
   const handleDelete = async () => {
@@ -365,6 +379,22 @@ const ProjectDetails = () => {
           </div>
         </div>
 
+        {/* Actions above Upload: View Documentation when exists */}
+        {latestRevision?.id && (
+          <div className="mb-6">
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700"
+              onClick={() =>
+                navigate(
+                  `/projects/${projectId}/documentation/${latestRevision.id}`
+                )
+              }
+            >
+              View Documentation
+            </button>
+          </div>
+        )}
+
         {/* Upload Section */}
         <div className="mb-8">
           <label className="mb-2 font-medium inline-flex items-center gap-2">
@@ -433,7 +463,7 @@ const ProjectDetails = () => {
         {/* Actions */}
         <div className="flex justify-between items-center mt-6">
           {/* Left side: Back & Start Documentation */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               className="px-4 py-2 bg-gray-300 rounded font-semibold  hover:bg-gray-400 inline-flex items-center gap-2"
               onClick={() => navigate("/dashboard")}

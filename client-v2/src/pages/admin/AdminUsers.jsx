@@ -6,9 +6,11 @@ import {
   updateUser,
   deleteUser,
 } from "../../services/adminService";
+import { useNavigate } from "react-router-dom";
 
 const AdminUsers = () => {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
@@ -79,7 +81,15 @@ const AdminUsers = () => {
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Manage Users</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold">Manage Users</h2>
+        <button
+          className="px-3 py-2 text-sm border rounded bg-white hover:bg-gray-50"
+          onClick={() => navigate("/admin")}
+        >
+          ← Back
+        </button>
+      </div>
       <table className="w-full border">
         <thead>
           <tr className="bg-gray-100">

@@ -84,3 +84,32 @@ async def cleanup_orphaned_files(db, current_user):
     if orphan_ids:
         await db.files.delete_many({"_id": {"$in": orphan_ids}})
     return {"detail": f"Removed {len(orphan_ids)} orphaned files"}
+
+# Documentations
+async def list_documentations(db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    docs = await db.documentations.find({}).sort("created_at", -1).to_list(length=None)
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d.pop("binary", None)
+    return docs
+
+async def admin_get_documentation(revision_id: str, db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    oid = ObjectId(revision_id)
+    doc = await db.documentations.find_one({"_id": oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documentation revision not found")
+    doc["id"] = str(doc.pop("_id"))
+    # Avoid sending binary in JSON
+    if "binary" in doc:
+        doc.pop("binary", None)
+    return doc
+
+async def admin_delete_documentation(revision_id: str, db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    oid = ObjectId(revision_id)
+    res = await db.documentations.delete_one({"_id": oid})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Documentation revision not found")
+    return {"detail": "Documentation revision deleted"}

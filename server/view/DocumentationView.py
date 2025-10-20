@@ -6,7 +6,7 @@ from controller.AuthController import get_current_user
 from utils.db import get_db
 from utils.project_verification import get_and_check_project_ownership
 import logging
-from utils.hf_client import hf_generate_batch
+from utils.hf_client import hf_generate_batch_async
 from utils.parser import extract_functions_classes_from_content
 from bson import ObjectId
 
@@ -38,7 +38,13 @@ async def generate_documentation(
     await get_and_check_project_ownership(project_id, db, current_user)
     logger.info(f"[GEN] Starting generation for project={project_id}, batch_size={batch_size}")
     try:
-      resp = await generate_documentation_with_hf(project_id, db, batch_size=batch_size)
+      created_by = {
+        "id": str(getattr(current_user, 'id', '')),
+        "username": getattr(current_user, 'username', None),
+        "email": getattr(current_user, 'email', None),
+        "is_admin": bool(getattr(current_user, 'is_admin', False)),
+      }
+      resp = await generate_documentation_with_hf(project_id, db, batch_size=batch_size, created_by=created_by)
       logger.info(f"[GEN] Completed generation for project={project_id}, items={len(resp.results)}")
       return resp
     except Exception as e:
@@ -56,7 +62,7 @@ async def demo_generate_single(req: SingleDocstringRequest) -> SingleDocstringRe
         return SingleDocstringResponse(status="failed", error="Code is required")
     try:
         prompt = f"Generate a clear docstring for this {req.type or 'function'} (if applicable).\n\n```python\n{req.code}\n```\n\nDocstring:"
-        outputs = hf_generate_batch([prompt], parameters={
+        outputs = await hf_generate_batch_async([prompt], parameters={
             "max_length": 128,
             "temperature": 0.7,
             "do_sample": True,
@@ -97,7 +103,7 @@ async def demo_generate_batch(req: DemoBatchRequest) -> DemoBatchResponse:
             prompts.append(
                 f"Generate a clear docstring for this {t}:\n\n{header}\n```python\n{code}\n```\n\nDocstring:"
             )
-        outputs = hf_generate_batch(prompts, parameters={
+        outputs = await hf_generate_batch_async(prompts, parameters={
             "max_length": 128,
             "temperature": 0.7,
             "do_sample": True,

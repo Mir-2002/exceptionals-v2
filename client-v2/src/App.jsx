@@ -21,6 +21,7 @@ import AdminDocs from "./pages/admin/AdminDocs";
 import GenerateDocumentation from "./pages/GenerateDocumentation";
 import HFDemoTest from "./pages/HFDemoTest";
 import DocumentationDetails from "./pages/DocumentationDetails";
+import AdminDocDetails from "./pages/admin/AdminDocDetails";
 
 function App() {
   return (
@@ -41,6 +42,10 @@ function App() {
               <Route path="/admin/files" element={<AdminFiles />} />
               <Route path="/admin/projects" element={<AdminProjects />} />
               <Route path="/admin/documentations" element={<AdminDocs />} />
+              <Route
+                path="/admin/documentations/:revisionId"
+                element={<AdminDocDetails />}
+              />
               <Route path="/projects/create" element={<CreateProject />} />
               <Route path="/settings" element={<UserSettings />} />
               <Route path="/projects/:projectId" element={<ProjectDetails />} />

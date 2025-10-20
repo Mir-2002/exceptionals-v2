@@ -33,7 +33,7 @@ const AdminDashboard = () => {
         />
         <Card
           title="Manage Documentations"
-          description="Coming soon."
+          description="View and manage documentation revisions."
           onClick={() => navigate("/admin/documentations")}
         />
       </div>

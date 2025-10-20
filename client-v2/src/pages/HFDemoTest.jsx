@@ -4,6 +4,8 @@ import {
   demoGenerateSingle,
   demoGenerateBatch,
 } from "../services/documentationService";
+import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
+import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 export default function HFDemoTest() {
   const [file, setFile] = useState(null);
@@ -118,9 +120,13 @@ export default function HFDemoTest() {
           {loading ? (
             <LoadingSpinner text="Waiting for response..." />
           ) : result ? (
-            <pre className="bg-gray-50 rounded p-2 text-sm overflow-auto max-h-96">
+            <SyntaxHighlighter
+              language="json"
+              style={atomOneLight}
+              customStyle={{ maxHeight: 384 }}
+            >
               {JSON.stringify(result, null, 2)}
-            </pre>
+            </SyntaxHighlighter>
           ) : (
             <div className="text-gray-500 text-sm">No result yet.</div>
           )}
@@ -132,9 +138,13 @@ export default function HFDemoTest() {
           <Card.Title>Logs</Card.Title>
         </Card.Header>
         <Card.Content>
-          <pre className="bg-gray-50 rounded p-2 text-xs overflow-auto max-h-64">
+          <SyntaxHighlighter
+            language="text"
+            style={atomOneLight}
+            customStyle={{ maxHeight: 256, whiteSpace: "pre-wrap" }}
+          >
             {logs.join("\n")}
-          </pre>
+          </SyntaxHighlighter>
         </Card.Content>
       </Card>
     </div>

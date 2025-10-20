@@ -1,95 +1,68 @@
 import os
-import requests
+import asyncio
+import httpx
 from typing import Any, Dict, List, Optional
-import time
 import random
 
 class HFConfigError(RuntimeError):
     pass
 
 def _get_hf_config() -> tuple[str, str]:
-    """Get HF endpoint URL and token from environment variables."""
     endpoint = os.getenv("HF_ENDPOINT")
     token = os.getenv("HF_TOKEN")
     if not endpoint or not token:
         raise HFConfigError("HF_ENDPOINT or HF_TOKEN not set in environment.")
     return endpoint, token
 
-def hf_query_json(payload: Dict[str, Any], timeout: int = 300, max_retries: int = 5) -> Any:
-    """
-    Query HF endpoint with automatic retry for cold start.
-    HF endpoints may take time to boot from sleep, so we retry with backoff.
-    """
+async def hf_query_json_async(payload: Dict[str, Any], timeout: int = 300, max_retries: int = 5) -> Any:
     endpoint, token = _get_hf_config()
     headers = {
         "Accept": "application/json",
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
-    
-    for attempt in range(max_retries):
-        try:
-            resp = requests.post(endpoint, headers=headers, json=payload, timeout=timeout)
-            
-            # Try to parse JSON even on non-2xx to surface error message
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for attempt in range(max_retries):
             try:
-                data = resp.json()
-            except Exception:
-                resp.raise_for_status()
-                return {}
-            
-            if resp.ok:
-                return data
-            
-            # Handle HF endpoint errors
-            if isinstance(data, dict):
-                error_msg = data.get("error") or data.get("message") or ""
-                # Check if it's a cold start error
-                if "loading" in error_msg.lower() or "starting" in error_msg.lower() or resp.status_code in (502, 503):
+                resp = await client.post(endpoint, headers=headers, json=payload)
+
+                try:
+                    data = resp.json()
+                except Exception:
+                    resp.raise_for_status()
+                    return {}
+
+                if resp.status_code in (502, 503) or "loading" in str(data).lower():
                     if attempt < max_retries - 1:
                         base = 3 * (2 ** attempt)
                         wait_time = base + random.uniform(0, 2)
-                        time.sleep(wait_time)
+                        await asyncio.sleep(wait_time)
                         continue
-                raise requests.HTTPError(error_msg or f"HF error {resp.status_code}", response=resp)
-            
-            # Non-dict error body
-            if attempt < max_retries - 1:
-                base = 3 * (2 ** attempt)
-                wait_time = base + random.uniform(0, 2)
-                time.sleep(wait_time)
-                continue
-            resp.raise_for_status()
-            
-        except requests.Timeout:
-            if attempt < max_retries - 1:
-                base = 3 * (2 ** attempt)
-                wait_time = base + random.uniform(0, 2)
-                time.sleep(wait_time)
-                continue
-            raise
-        except requests.RequestException:
-            if attempt < max_retries - 1:
-                base = 3 * (2 ** attempt)
-                wait_time = base + random.uniform(0, 2)
-                time.sleep(wait_time)
-                continue
-            raise
-    
-    raise requests.HTTPError(f"Failed after {max_retries} attempts")
+                    raise httpx.HTTPStatusError(f"HF error: {resp.status_code}", request=resp.request, response=resp)
 
-def hf_generate_batch(inputs: List[str], parameters: Optional[Dict[str, Any]] = None) -> List[str]:
-    """
-    Call HF endpoint with a batch of inputs and return list of generated texts.
-    Your handler returns: List[Dict[str, str]] with key 'generated_text'.
-    """
+                if resp.is_success:
+                    return data
+
+                raise httpx.HTTPStatusError(f"Error: {data}", request=resp.request, response=resp)
+
+            except (httpx.TimeoutException, httpx.RequestError) as e:
+                if attempt < max_retries - 1:
+                    base = 3 * (2 ** attempt)
+                    wait_time = base + random.uniform(0, 2)
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise e
+
+    raise httpx.HTTPStatusError(f"Failed after {max_retries} attempts", request=None, response=None)
+
+async def hf_generate_batch_async(inputs: List[str], parameters: Optional[Dict[str, Any]] = None) -> List[str]:
     payload: Dict[str, Any] = {"inputs": inputs}
     if parameters:
         payload["parameters"] = parameters
-    
-    data = hf_query_json(payload)
-    
-    # Normalize response format generously: may be a list of dicts or list of lists
+
+    data = await hf_query_json_async(payload)
+
     outputs: List[str] = []
     if isinstance(data, list):
         for item in data:
@@ -103,5 +76,5 @@ def hf_generate_batch(inputs: List[str], parameters: Optional[Dict[str, Any]] = 
         outputs.append(str(data["generated_text"]))
     else:
         outputs.append(str(data))
-    
+
     return outputs

@@ -9,6 +9,9 @@ from controller.AdminController import (
     admin_delete_project as ctl_delete_project,
     list_files as ctl_list_files,
     cleanup_orphaned_files as ctl_cleanup_orphans,
+    list_documentations as ctl_list_documentations,
+    admin_delete_documentation as ctl_delete_documentation,
+    admin_get_documentation as ctl_get_documentation,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -43,3 +46,16 @@ async def list_files(db=Depends(get_db), current_user=Depends(get_current_user))
 @router.post("/files/cleanup-orphans")
 async def cleanup_orphaned_files(db=Depends(get_db), current_user=Depends(get_current_user)):
     return await ctl_cleanup_orphans(db, current_user)
+
+# Documentations
+@router.get("/documentations")
+async def list_documentations(db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_list_documentations(db, current_user)
+
+@router.get("/documentations/{revision_id}")
+async def get_documentation(revision_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_get_documentation(revision_id, db, current_user)
+
+@router.delete("/documentations/{revision_id}")
+async def delete_documentation(revision_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_delete_documentation(revision_id, db, current_user)

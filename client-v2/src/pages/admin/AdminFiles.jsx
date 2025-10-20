@@ -6,9 +6,11 @@ import {
   deleteFile,
   cleanupOrphans,
 } from "../../services/adminService";
+import { useNavigate } from "react-router-dom";
 
 const AdminFiles = () => {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,12 +57,20 @@ const AdminFiles = () => {
     <main className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Manage Files</h2>
-        <button
-          className="px-3 py-2 bg-yellow-600 text-white rounded"
-          onClick={onCleanup}
-        >
-          Cleanup Orphaned Files
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="px-3 py-2 text-sm border rounded bg-white hover:bg-gray-50"
+            onClick={() => navigate("/admin")}
+          >
+            ← Back
+          </button>
+          <button
+            className="px-3 py-2 bg-yellow-600 text-white rounded"
+            onClick={onCleanup}
+          >
+            Cleanup Orphaned Files
+          </button>
+        </div>
       </div>
       <table className="w-full border">
         <thead>

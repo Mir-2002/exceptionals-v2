@@ -57,3 +57,21 @@ export async function cleanupOrphans(token) {
   );
   return res.data;
 }
+
+// Documentations
+export async function adminListDocumentations(token) {
+  const res = await axios.get(`${API_URL}/admin/documentations`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
+
+export async function adminDeleteDocumentation(revisionId, token) {
+  const res = await axios.delete(
+    `${API_URL}/admin/documentations/${revisionId}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return res.data;
+}
