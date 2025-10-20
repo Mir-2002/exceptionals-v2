@@ -206,14 +206,18 @@ export default function GenerateDocumentation() {
           </div>
           {/* Description hidden until expanded */}
           {showAdvanced && (
-            <p className="text-xs text-gray-600 mt-1">Parameters to tweak model output</p>
+            <p className="text-xs text-gray-600 mt-1">
+              Parameters to tweak model output
+            </p>
           )}
         </Card.Header>
         {showAdvanced && (
           <Card.Content>
             {/* Warning section */}
             <div className="mb-4 p-3 rounded border border-yellow-300 bg-yellow-50 text-yellow-800 text-sm">
-              Unrealistic parameters may induce the model to hallucinate and generate faulty output. We recommend sticking to the defaults, or setting none at all, for the best quality.
+              Unrealistic parameters may induce the model to hallucinate and
+              generate faulty output. We recommend sticking to the defaults, or
+              setting none at all, for the best quality.
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>

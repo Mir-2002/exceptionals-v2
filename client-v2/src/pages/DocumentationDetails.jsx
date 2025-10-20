@@ -142,7 +142,9 @@ export default function DocumentationDetails() {
           </Button>
           <Button
             variant="secondary"
-            onClick={() => navigate(`/projects/${projectId}/documentation/browser`)}
+            onClick={() =>
+              navigate(`/projects/${projectId}/documentation/browser`)
+            }
           >
             Browse All Revisions
           </Button>
@@ -172,7 +174,9 @@ export default function DocumentationDetails() {
                 className="w-full h-[75vh] border rounded"
               />
             ) : (
-              <div className="text-sm text-gray-500">Loading PDF preview...</div>
+              <div className="text-sm text-gray-500">
+                Loading PDF preview...
+              </div>
             )
           ) : fmt === "MARKDOWN" ? (
             <SyntaxHighlighter
@@ -203,13 +207,17 @@ export default function DocumentationDetails() {
               {doc.results.map((r, idx) => (
                 <div key={idx} className="border rounded p-3 bg-white">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="px-2 py-0.5 text-xs rounded bg-gray-100 border uppercase">{r.type}</span>
+                    <span className="px-2 py-0.5 text-xs rounded bg-gray-100 border uppercase">
+                      {r.type}
+                    </span>
                     <span className="font-mono text-sm break-all font-semibold">
                       {r.name}
                       {r.parent_class ? ` (class ${r.parent_class})` : ""}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500 break-all mb-2">{r.file}</div>
+                  <div className="text-xs text-gray-500 break-all mb-2">
+                    {r.file}
+                  </div>
                   <pre className="bg-gray-50 rounded p-2 text-xs overflow-auto max-h-40 whitespace-pre-wrap">
                     {r.generated_docstring}
                   </pre>
