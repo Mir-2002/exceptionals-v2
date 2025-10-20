@@ -9,6 +9,7 @@ import logging
 from utils.hf_client import hf_generate_batch_async
 from utils.parser import extract_functions_classes_from_content
 from bson import ObjectId
+from utils.doc_templates import render_html, render_markdown, render_pdf
 
 logger = logging.getLogger("documentation")
 
@@ -155,13 +156,21 @@ async def get_revision(project_id: str, revision_id: str, db=Depends(get_db), cu
     if not doc:
         raise HTTPException(status_code=404, detail="Revision not found")
     doc["id"] = str(doc.pop("_id"))
-    # Remove binary content from JSON response to avoid UTF-8 decoding errors
-    if "binary" in doc:
-        doc.pop("binary", None)
-    # Provide a download URL for clients (esp. PDF)
     fmt = (doc.get("format") or "HTML").upper()
+
+    # Generate content on the fly for preview (non-PDF)
     if fmt == "PDF":
+        doc.pop("binary", None)
         doc["download_url"] = f"/api/documentation/projects/{project_id}/revisions/{revision_id}/download"
+    elif fmt == "MARKDOWN":
+        # Render markdown text (no binary)
+        content = render_markdown(project_id, doc.get("results") or [], project_name=doc.get("project_name"), project_description=(doc.get("preferences_snapshot") or {}).get("project_description"), revision_id=revision_id)
+        doc["content"] = content
+        doc["content_type"] = "text/markdown"
+    else:
+        html = render_html(project_id, doc.get("results") or [], project_name=doc.get("project_name"), project_description=(doc.get("preferences_snapshot") or {}).get("project_description"), revision_id=revision_id)
+        doc["content"] = html
+        doc["content_type"] = "text/html"
     return doc
 
 @router.get("/projects/{project_id}/revisions/{revision_id}/download")
@@ -172,13 +181,13 @@ async def download_revision(project_id: str, revision_id: str, db=Depends(get_db
         raise HTTPException(status_code=404, detail="Revision not found")
     fmt = (doc.get("format") or "HTML").upper()
     filename = f"documentation_{project_id}_{revision_id}.{ 'pdf' if fmt == 'PDF' else ('md' if fmt == 'MARKDOWN' else 'html') }"
+
     if fmt == "PDF":
-        binary = doc.get("binary")
-        if not binary:
-            raise HTTPException(status_code=400, detail="No PDF content available")
-        # Ensure raw bytes are returned
-        return Response(content=bytes(binary), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
+        pdf_bytes = render_pdf(project_id, doc.get("results") or [], project_name=doc.get("project_name"), project_description=(doc.get("preferences_snapshot") or {}).get("project_description"), revision_id=revision_id)
+        return Response(content=pdf_bytes or b"", media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
+    elif fmt == "MARKDOWN":
+        content = render_markdown(project_id, doc.get("results") or [], project_name=doc.get("project_name"), project_description=(doc.get("preferences_snapshot") or {}).get("project_description"), revision_id=revision_id)
+        return Response(content=content or "", media_type="text/markdown", headers={"Content-Disposition": f"attachment; filename={filename}"})
     else:
-        content = doc.get("content") or ""
-        media = "text/markdown" if fmt == "MARKDOWN" else "text/html"
-        return Response(content=content, media_type=media, headers={"Content-Disposition": f"attachment; filename={filename}"})
+        html = render_html(project_id, doc.get("results") or [], project_name=doc.get("project_name"), project_description=(doc.get("preferences_snapshot") or {}).get("project_description"), revision_id=revision_id)
+        return Response(content=html or "", media_type="text/html", headers={"Content-Disposition": f"attachment; filename={filename}"})

@@ -204,14 +204,17 @@ export default function GenerateDocumentation() {
               {showAdvanced ? "Hide" : "Show"}
             </Button>
           </div>
-          <p className="text-xs text-gray-600 mt-1">
-            We recommend defaults for best quality. Adjust only if you
-            understand sampling. Higher temperature increases creativity; Top
-            P/Top K control sampling diversity.
-          </p>
+          {/* Description hidden until expanded */}
+          {showAdvanced && (
+            <p className="text-xs text-gray-600 mt-1">Parameters to tweak model output</p>
+          )}
         </Card.Header>
         {showAdvanced && (
           <Card.Content>
+            {/* Warning section */}
+            <div className="mb-4 p-3 rounded border border-yellow-300 bg-yellow-50 text-yellow-800 text-sm">
+              Unrealistic parameters may induce the model to hallucinate and generate faulty output. We recommend sticking to the defaults, or setting none at all, for the best quality.
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -230,10 +233,6 @@ export default function GenerateDocumentation() {
                   }
                   className="w-full border rounded px-2 py-1"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Controls randomness. Lower is deterministic, higher is more
-                  creative.
-                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -250,10 +249,6 @@ export default function GenerateDocumentation() {
                   }
                   className="w-full border rounded px-2 py-1"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Nucleus sampling. Chooses from the smallest set of tokens
-                  whose cumulative probability exceeds P.
-                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -272,9 +267,6 @@ export default function GenerateDocumentation() {
                   }
                   className="w-full border rounded px-2 py-1"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Limits sampling pool to top-K most likely tokens at each step.
-                </p>
               </div>
             </div>
           </Card.Content>

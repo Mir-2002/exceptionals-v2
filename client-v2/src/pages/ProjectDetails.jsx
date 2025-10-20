@@ -380,18 +380,16 @@ const ProjectDetails = () => {
           </div>
         </div>
 
-        {/* Actions above Upload: View Documentation when exists */}
+        {/* View generated documentations when at least one revision exists */}
         {latestRevision?.id && (
           <div className="mb-6">
             <Button
               variant="primary"
               onClick={() =>
-                navigate(
-                  `/projects/${projectId}/documentation/${latestRevision.id}`
-                )
+                navigate(`/projects/${projectId}/documentation/browser`)
               }
             >
-              View Documentation
+              View Generated Documentations
             </Button>
           </div>
         )}

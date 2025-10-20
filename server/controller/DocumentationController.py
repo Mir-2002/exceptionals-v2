@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from model.DocumentationModel import DocumentationPlan, DocstringItem, DocumentationResult, DocumentationGenerationResponse
 from utils.hf_client import hf_generate_batch_async
 import time
-from utils.doc_templates import render_html, render_markdown, render_pdf
+# from utils.doc_templates import render_html, render_markdown, render_pdf  # no rendering here anymore
 from bson import ObjectId, Binary
 import asyncio
 from datetime import datetime
@@ -291,7 +291,8 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
     doc_record = {
         "project_id": project_id,
         "format": fmt,
-        "content": None,  # fill after render
+        # Do not persist rendered content/binary; generate on the fly instead
+        "content": None,
         "content_type": None,
         "binary": None,
         "results": results_dicts,
@@ -306,26 +307,7 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
     inserted = await db.documentations.insert_one(doc_record)
     revision_id = str(inserted.inserted_id)
 
-    # Render with project metadata and revision id
-    if fmt == "MARKDOWN":
-        content = render_markdown(project_id, results_dicts, project_name=project_name, project_description=project_description, revision_id=revision_id)
-        content_type = "text/markdown"
-        binary = None
-    elif fmt == "PDF":
-        pdf_bytes = render_pdf(project_id, results_dicts, project_name=project_name, project_description=project_description, revision_id=revision_id)
-        binary = Binary(pdf_bytes) if pdf_bytes is not None else None
-        content = None
-        content_type = "application/pdf"
-    else:
-        content = render_html(project_id, results_dicts, project_name=project_name, project_description=project_description, revision_id=revision_id)
-        content_type = "text/html"
-        binary = None
-
-    # Update the inserted record with rendered content
-    await db.documentations.update_one(
-        {"_id": ObjectId(revision_id)},
-        {"$set": {"content": content, "content_type": content_type, "binary": binary}}
-    )
+    # Rendering is deferred to retrieval/download time to save storage.
 
     # Mark project as completed once a documentation is generated
     try:
