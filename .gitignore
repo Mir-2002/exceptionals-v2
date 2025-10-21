@@ -31,5 +31,3 @@ Thumbs.db
 client-legacy/
 client-legacy/node_modules/
 client-legacy/dist/
-
-server/__pycache__/
