@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/authContext";
 import { usePreferences } from "../context/preferenceContext";
@@ -38,6 +38,20 @@ export default function GenerateDocumentation() {
   const [genStart, setGenStart] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [modelStatus, setModelStatus] = useState("idle");
+  const controllerRef = useRef(null);
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        controllerRef.current?.abort("Component unmounted");
+      } catch {}
+    };
+  }, []);
 
   useEffect(() => {
     let timer;
@@ -130,64 +144,126 @@ export default function GenerateDocumentation() {
     const maxAttempts = 3;
     let attempt = 0;
 
-    while (attempt < maxAttempts) {
-      setModelStatus("processing");
-      try {
-        const res = await generateDocumentation(projectId, token, {
-          // batchSize intentionally omitted to let server env decide
-          temperature: advTemperature,
-          topP: advTopP,
-          topK: advTopK,
-        });
-        setModelStatus("processing");
-        const elapsedSecs =
-          Number(res?.generation_time_seconds ?? elapsed) || 0;
-        const mins = Math.floor(elapsedSecs / 60);
-        const secs = Math.floor(elapsedSecs % 60);
-        showSuccess(
-          `Generated ${
-            res?.results?.length || 0
-          } docstrings in ${mins}m ${secs}s`
-        );
-        try {
-          await updateProject(projectId, { status: "completed" }, token);
-        } catch {}
-        const revisions = await listDocumentationRevisions(projectId, token);
-        const latest = revisions?.revisions?.[0];
-        if (latest?.id) {
-          navigate(`/projects/${projectId}/documentation/${latest.id}`);
-        }
-        break; // exit retry loop on success
-      } catch (e) {
-        const status = e?.response?.status;
-        if (status && status >= 500) {
-          attempt += 1;
-          setModelStatus("booting");
-          if (attempt < maxAttempts) {
-            const backoff =
-              attempt === 1 ? 5000 : attempt === 2 ? 10000 : 20000;
-            await new Promise((r) => setTimeout(r, backoff));
-            continue;
-          } else {
-            showError(
-              "The model service is starting up (503/5xx). Please wait a moment and try again."
-            );
-          }
-        } else if (status && status >= 400) {
-          setModelStatus("paused");
-          showError("Model is currently unavailable. Please try again later.");
-        } else {
-          const msg =
-            e?.response?.data?.detail || e?.message || "Generation failed";
-          showError(msg);
-        }
-        break; // exit loop on non-retryable or after final retry
-      }
-    }
+    // Controller to support cancellation on timeout or user action
+    controllerRef.current = new AbortController();
 
+    // Hard timeout after 120s to cancel generation
+    const HARD_TIMEOUT_MS = 120000;
+    timeoutRef.current = setTimeout(() => {
+      try {
+        controllerRef.current?.abort("Client-side timeout after 120s");
+      } catch {}
+    }, HARD_TIMEOUT_MS);
+
+    try {
+      while (attempt < maxAttempts) {
+        try {
+          const res = await generateDocumentation(projectId, token, {
+            // batchSize intentionally omitted to let server env decide
+            temperature: advTemperature,
+            topP: advTopP,
+            topK: advTopK,
+            signal: controllerRef.current.signal,
+            timeoutMs: HARD_TIMEOUT_MS, // axios-level timeout
+          });
+          // Successful response -> keep as processing until we navigate
+          setModelStatus("processing");
+          const elapsedSecs =
+            Number(res?.generation_time_seconds ?? elapsed) || 0;
+          const mins = Math.floor(elapsedSecs / 60);
+          const secs = Math.floor(elapsedSecs % 60);
+          showSuccess(
+            `Generated ${
+              res?.results?.length || 0
+            } docstrings in ${mins}m ${secs}s`
+          );
+          try {
+            await updateProject(projectId, { status: "completed" }, token);
+          } catch {}
+          const revisions = await listDocumentationRevisions(projectId, token);
+          const latest = revisions?.revisions?.[0];
+          if (latest?.id) {
+            navigate(`/projects/${projectId}/documentation/${latest.id}`);
+          }
+          break; // exit retry loop on success
+        } catch (e) {
+          // Distinguish axios timeout/cancel
+          const code = e?.code;
+          const status = e?.response?.status;
+          const modelHeader =
+            e?.response?.headers?.["x-model-status"]?.toLowerCase?.();
+          const isCanceled =
+            code === "ERR_CANCELED" ||
+            code === "ECONNABORTED" ||
+            e?.message?.toLowerCase?.().includes("timeout") ||
+            e?.message?.toLowerCase?.().includes("aborted");
+
+          if (isCanceled) {
+            setModelStatus("paused");
+            showError(
+              "Generation timed out after 120s and was canceled. Please try again when the model is ready."
+            );
+            break;
+          }
+
+          // Prefer explicit header if provided by server
+          if (modelHeader === "booting") {
+            setModelStatus("booting");
+          } else if (modelHeader === "paused") {
+            setModelStatus("paused");
+          } else if (status && status >= 500) {
+            setModelStatus("booting");
+          } else if (status && status >= 400) {
+            setModelStatus("paused");
+          }
+
+          if (status && status >= 500) {
+            attempt += 1;
+            if (attempt < maxAttempts) {
+              const backoff =
+                attempt === 1 ? 5000 : attempt === 2 ? 10000 : 20000;
+              await new Promise((r) => setTimeout(r, backoff));
+              continue;
+            } else {
+              showError(
+                "The model service is starting up (5xx). Please wait a moment and try again."
+              );
+            }
+          } else if (status && status >= 400) {
+            showError(
+              "Model is currently unavailable (4xx). Please try again later."
+            );
+          } else {
+            const msg =
+              e?.response?.data?.detail || e?.message || "Generation failed";
+            showError(msg);
+          }
+          break; // exit loop on non-retryable or after final retry
+        }
+      }
+    } finally {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      controllerRef.current = null;
+      setGenStart(null);
+      setGenLoading(false);
+      // Do not reset modelStatus here to avoid flicker; it will be updated on next action
+    }
+  };
+
+  const handleCancel = () => {
+    try {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      controllerRef.current?.abort("User canceled generation");
+    } catch {}
+    setModelStatus("paused");
     setGenLoading(false);
-    setModelStatus("idle");
-    setGenStart(null);
+    showError("Generation canceled by user.");
   };
 
   if (loading) {
@@ -514,6 +590,8 @@ export default function GenerateDocumentation() {
                 ? "Model service is booting up..."
                 : modelStatus === "paused"
                 ? "Model is currently unavailable. Please try again later."
+                : modelStatus === "processing"
+                ? "Generating documentation"
                 : "Generating documentation"}
             </div>
             <div className="text-sm text-gray-500">
@@ -521,6 +599,11 @@ export default function GenerateDocumentation() {
               window.
             </div>
             <div className="text-xs text-gray-600">Elapsed: {elapsed}s</div>
+            <div className="pt-2">
+              <Button variant="secondary" onClick={handleCancel}>
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}

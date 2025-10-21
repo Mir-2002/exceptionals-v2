@@ -375,7 +375,7 @@ export default function DocumentationBrowser() {
                     </div>
                   </div>
                 ) : (selected.format || "HTML").toUpperCase() === "MARKDOWN" ? (
-                  <pre className="whitespace-pre-wrap break-words bg-gray-50 border rounded p-3 text-sm">
+                  <pre className="whitespace-pre-wrap break-words overflow-auto bg-gray-50 border rounded p-3 text-sm">
                     {selected.content}
                   </pre>
                 ) : selected.content ? (

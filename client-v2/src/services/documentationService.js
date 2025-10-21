@@ -27,7 +27,7 @@ export async function getDocumentationPlan(projectId, token) {
 }
 
 export async function generateDocumentation(projectId, token, opts = {}) {
-  const { batchSize, temperature, topP, topK } = opts;
+  const { batchSize, temperature, topP, topK, signal, timeoutMs } = opts;
   try {
     const body = {
       clean_up_tokenization_spaces: true,
@@ -45,6 +45,10 @@ export async function generateDocumentation(projectId, token, opts = {}) {
           Authorization: `Bearer ${token}`,
         },
         params: batchSize ? { batch_size: batchSize } : {},
+        // Enforce a hard client-side timeout (default 120s)
+        timeout: typeof timeoutMs === "number" ? timeoutMs : 120000,
+        // Allow caller to cancel explicitly (AbortController)
+        signal,
       }
     );
     return res.data;

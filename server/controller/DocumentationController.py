@@ -9,6 +9,7 @@ import asyncio
 from datetime import datetime
 from utils.doc_cleaner import clean_results_docstrings
 import os
+import httpx
 
 def normalize_path(p: Optional[str]) -> str:
     # Remove leading './', '/', and 'root/' for consistency
@@ -241,7 +242,27 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
         all_outputs = await asyncio.gather(*tasks)
         for batch_output in all_outputs:
             outputs.extend(batch_output)
+    except httpx.HTTPStatusError as e:
+        code = getattr(e, "response", None).status_code if getattr(e, "response", None) is not None else 502
+        # Try to extract a meaningful message
+        detail = None
+        try:
+            detail = e.response.json()
+        except Exception:
+            try:
+                detail = e.response.text
+            except Exception:
+                detail = str(e)
+        # Map to explicit model status for the client
+        headers = {}
+        text = str(detail).lower() if detail is not None else ""
+        if code >= 500:
+            headers["X-Model-Status"] = "booting"
+        elif 400 <= code < 500:
+            headers["X-Model-Status"] = "paused"
+        raise HTTPException(status_code=code, detail=f"Upstream HF error: {detail}", headers=headers or None)
     except Exception as e:
+        # Preserve original error in detail but mark as 502
         raise HTTPException(status_code=502, detail=f"Model generation failed: {str(e)}")
 
     # Fallback if output count mismatched
@@ -254,6 +275,15 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
                     fallback_outputs.append(str(single[0]).strip())
                 else:
                     fallback_outputs.append("")
+            except httpx.HTTPStatusError as e:
+                # On upstream error during fallback, propagate status to client
+                code = getattr(e, "response", None).status_code if getattr(e, "response", None) is not None else 502
+                headers = {}
+                if code >= 500:
+                    headers["X-Model-Status"] = "booting"
+                elif 400 <= code < 500:
+                    headers["X-Model-Status"] = "paused"
+                raise HTTPException(status_code=code, detail="Upstream HF error during fallback generation", headers=headers or None)
             except Exception:
                 fallback_outputs.append("")
             await asyncio.sleep(0.1)

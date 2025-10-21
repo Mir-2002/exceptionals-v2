@@ -22,6 +22,9 @@ async def hf_query_json_async(payload: Dict[str, Any], timeout: int = 600, max_r
         "Content-Type": "application/json",
     }
 
+    # Allow immediate pass-through of upstream errors for better client UX
+    passthrough = (os.getenv("HF_PASSTHROUGH_ERRORS", "1").strip() not in ("0", "false", "False"))
+
     async with httpx.AsyncClient(timeout=timeout) as client:
         last_error: Optional[Exception] = None
         for attempt in range(max_retries):
@@ -37,9 +40,13 @@ async def hf_query_json_async(payload: Dict[str, Any], timeout: int = 600, max_r
                 # Handle warm-up / loading and transient errors
                 loading_signal = False
                 if data is not None and isinstance(data, (dict, list)):
-                    loading_signal = "loading" in str(data).lower() or "estimated_time" in str(data).lower()
+                    s = str(data).lower()
+                    loading_signal = ("loading" in s) or ("estimated_time" in s) or ("warm" in s)
 
                 if resp.status_code in (429, 502, 503) or loading_signal:
+                    if passthrough:
+                        # Return control to caller immediately; they can surface status to client
+                        raise httpx.HTTPStatusError(f"HF error: {resp.status_code}", request=resp.request, response=resp)
                     if attempt < max_retries - 1:
                         base = 5 * (2 ** attempt)  # slower exponential backoff
                         wait_time = min(base + random.uniform(0, 3), 90)
@@ -52,6 +59,10 @@ async def hf_query_json_async(payload: Dict[str, Any], timeout: int = 600, max_r
                     return data if data is not None else {}
 
                 # Other HTTP errors
+                if passthrough:
+                    # e.g., 400 paused
+                    raise httpx.HTTPStatusError(f"Error: {data}", request=resp.request, response=resp)
+
                 last_error = httpx.HTTPStatusError(f"Error: {data}", request=resp.request, response=resp)
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2 + attempt)
@@ -67,22 +78,23 @@ async def hf_query_json_async(payload: Dict[str, Any], timeout: int = 600, max_r
                 else:
                     break
 
-        # Graceful warm-up fallback: slow polling for up to ~2 minutes
-        try:
-            for i in range(6):  # 6 polls ~20s apart
-                await asyncio.sleep(20)
-                try:
-                    resp = await client.post(endpoint, headers=headers, json=payload)
-                    if resp.is_success:
-                        try:
-                            return resp.json()
-                        except Exception:
-                            return {}
-                except Exception:
-                    # keep trying until loop finishes
-                    pass
-        except Exception:
-            pass
+        # Graceful warm-up fallback (only if passthrough disabled)
+        if not passthrough:
+            try:
+                for i in range(6):  # 6 polls ~20s apart
+                    await asyncio.sleep(20)
+                    try:
+                        resp = await client.post(endpoint, headers=headers, json=payload)
+                        if resp.is_success:
+                            try:
+                                return resp.json()
+                            except Exception:
+                                return {}
+                    except Exception:
+                        # keep trying until loop finishes
+                        pass
+            except Exception:
+                pass
 
         if last_error:
             raise last_error
