@@ -11,6 +11,7 @@ import {
 import { Button, Card } from "../components/ui";
 import { showSuccess, showError } from "../utils/toast";
 import { FiFolderPlus, FiUpload, FiTag, FiInfo, FiX } from "react-icons/fi";
+import { logger } from "../utils/logger";
 
 const TAG_OPTIONS = ["Library", "Framework", "API"];
 
@@ -103,7 +104,7 @@ const CreateProject = () => {
         apiDetail ||
         error?.message ||
         "Failed to create project or upload files. Please try again.";
-      console.error(message);
+      logger.error(message);
       showError(message);
     }
   };

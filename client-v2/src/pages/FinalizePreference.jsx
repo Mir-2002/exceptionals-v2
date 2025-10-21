@@ -8,6 +8,7 @@ import { normalizePath, basename, getNodePath } from "../utils/pathUtils";
 import { showSuccess, showError } from "../utils/toast";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { logger } from "../utils/logger";
 
 const FinalizePreference = () => {
   const {
@@ -39,7 +40,7 @@ const FinalizePreference = () => {
   }, []);
 
   useEffect(() => {
-    console.log("Preferences changed, reloading plan:", preferences); // Debug log
+    logger.debug("Preferences changed, reloading plan:", preferences); // Debug log
     loadDocumentationPlan();
   }, [
     projectId,
@@ -56,9 +57,9 @@ const FinalizePreference = () => {
     try {
       const plan = await getDocumentationPlan(projectId, token);
       setDocumentationPlan(plan);
-      console.log("Documentation plan loaded:", plan); // Debug log
+      logger.debug("Documentation plan loaded:", plan); // Debug log
     } catch (error) {
-      console.error("Failed to load documentation plan:", error);
+      logger.error("Failed to load documentation plan:", error);
       setDocumentationPlan(null);
     } finally {
       setPlanLoading(false);
@@ -209,10 +210,10 @@ const FinalizePreference = () => {
 
   // Finalize: persist format + log full context
   const handleFinalize = async () => {
-    console.log("Before finalize - current preferences:", preferences);
-    console.log("Chosen format (local state):", docFormat);
+    logger.debug("Before finalize - current preferences:", preferences);
+    logger.debug("Chosen format (local state):", docFormat);
     const ok = await completeStep(2, { format: docFormat });
-    console.log(
+    logger.debug(
       "After finalize attempt (context may update async):",
       preferences
     );

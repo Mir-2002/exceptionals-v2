@@ -8,6 +8,7 @@ from bson import ObjectId, Binary
 import asyncio
 from datetime import datetime
 from utils.doc_cleaner import clean_results_docstrings
+import os
 
 def normalize_path(p: Optional[str]) -> str:
     # Remove leading './', '/', and 'root/' for consistency
@@ -218,8 +219,13 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
     if parameters:
         default_params.update(parameters)
 
-    # Limit concurrency (e.g. max 3 parallel HF requests)
-    semaphore = asyncio.Semaphore(3)
+    # Limit concurrency (configurable) to fully utilize GPU/CPU
+    try:
+        max_conc = int(os.getenv("HF_MAX_CONCURRENCY", "6"))
+    except Exception:
+        max_conc = 6
+    max_conc = max(1, min(32, max_conc))
+    semaphore = asyncio.Semaphore(max_conc)
 
     async def generate_batch(batch):
         async with semaphore:

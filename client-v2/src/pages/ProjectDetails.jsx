@@ -23,6 +23,7 @@ import {
 } from "react-icons/fi";
 import { listDocumentationRevisions } from "../services/documentationService";
 import { Button } from "../components/ui";
+import { logger } from "../utils/logger";
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -67,14 +68,14 @@ const ProjectDetails = () => {
             node.children.forEach(checkIds);
           } else {
             if (!node.id) {
-              console.warn("File node missing id:", node);
+              logger.warn("File node missing id:", node);
             }
           }
         };
         checkIds(tree);
       }
     } catch (err) {
-      console.error("Failed to fetch file tree:", err);
+      logger.error("Failed to fetch file tree:", err);
       // Set empty tree instead of null for better UX
       setFileTree({ name: "root", children: [] });
     }
@@ -194,7 +195,7 @@ const ProjectDetails = () => {
           `Folder "${node.name}" and all its files deleted successfully!`
         );
       } catch (err) {
-        console.error("Delete folder error:", err);
+        logger.error("Delete folder error:", err);
         showError("Failed to delete folder and its files.");
       }
     } else {
@@ -216,7 +217,7 @@ const ProjectDetails = () => {
         setShowFileBox(false);
         showSuccess(`File "${node.name}" deleted successfully!`);
       } catch (err) {
-        console.error("Delete file error:", err);
+        logger.error("Delete file error:", err);
         showError("Failed to delete file.");
       }
     }

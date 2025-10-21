@@ -10,6 +10,7 @@ import {
 import { updateProject } from "../services/projectService";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { logger } from "../utils/logger";
 
 export default function DocumentationDetails() {
   const { projectId, revisionId } = useParams();
@@ -51,7 +52,7 @@ export default function DocumentationDetails() {
           // Ignore errors, do not block UI
         }
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -79,7 +80,7 @@ export default function DocumentationDetails() {
         setPdfUrl(url);
         return () => URL.revokeObjectURL(url);
       } catch (e) {
-        console.error("Failed to fetch PDF blob", e);
+        logger.error("Failed to fetch PDF blob", e);
       }
     };
     fetchPdf();
@@ -109,7 +110,7 @@ export default function DocumentationDetails() {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     } finally {
       setDownloading(false);
     }
@@ -134,7 +135,7 @@ export default function DocumentationDetails() {
       setDoc(updated);
       setEditingMeta(false);
     } catch (e) {
-      console.error("Failed to update metadata", e);
+      logger.error("Failed to update metadata", e);
     } finally {
       setSavingMeta(false);
     }

@@ -257,7 +257,7 @@ export default function DocumentationBrowser() {
       </Card>
 
       {/* Content */}
-      <Card className="flex-1 h-[80vh]">
+      <Card className="flex-1 h-[80vh] flex flex-col overflow-hidden">
         <Card.Header>
           <Card.Title>Revision Preview</Card.Title>
           {selected && (
@@ -278,13 +278,13 @@ export default function DocumentationBrowser() {
             </div>
           )}
         </Card.Header>
-        <Card.Content className="overflow-auto">
+        <Card.Content className="flex-1 overflow-hidden">
           {!selected ? (
             <div className="text-gray-500">
               Select a revision from the left.
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="flex flex-col h-full min-h-0 space-y-4">
               {editingMeta && (
                 <div className="border rounded p-3 bg-white">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -350,38 +350,44 @@ export default function DocumentationBrowser() {
                 </div>
               )}
 
-              <div className="text-lg font-semibold">
-                {selected.title ||
-                  selected.project_name ||
-                  `Project ${projectId}`}
-              </div>
-              {selected.description && (
-                <div className="text-sm text-gray-700">
-                  {selected.description}
+              <div>
+                <div className="text-lg font-semibold">
+                  {selected.title ||
+                    selected.project_name ||
+                    `Project ${projectId}`}
                 </div>
-              )}
-              <div className="text-xs text-gray-600">
-                Version: {selected.id}
-              </div>
-              {(selected.format || "HTML").toUpperCase() === "PDF" ? (
-                <div className="space-y-3">
-                  <div className="text-sm text-gray-600">
-                    PDF cannot be previewed inline. Use Download to view.
+                {selected.description && (
+                  <div className="text-sm text-gray-700">
+                    {selected.description}
                   </div>
+                )}
+                <div className="text-xs text-gray-600">
+                  Version: {selected.id}
                 </div>
-              ) : selected.content ? (
-                <div
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{
-                    __html:
-                      (selected.format || "HTML").toUpperCase() === "MARKDOWN"
-                        ? `<pre class='whitespace-pre-wrap'>${selected.content}</pre>`
-                        : selected.content,
-                  }}
-                />
-              ) : (
-                <div className="text-gray-500">No content available.</div>
-              )}
+              </div>
+
+              {/* Scrollable preview area */}
+              <div className="flex-1 min-h-0 overflow-auto">
+                {(selected.format || "HTML").toUpperCase() === "PDF" ? (
+                  <div className="space-y-3">
+                    <div className="text-sm text-gray-600">
+                      PDF cannot be previewed inline. Use Download to view.
+                    </div>
+                  </div>
+                ) : (selected.format || "HTML").toUpperCase() === "MARKDOWN" ? (
+                  <pre className="whitespace-pre-wrap break-words bg-gray-50 border rounded p-3 text-sm">
+                    {selected.content}
+                  </pre>
+                ) : selected.content ? (
+                  <iframe
+                    title="revision-html"
+                    srcDoc={selected.content}
+                    className="w-full h-full border rounded"
+                  />
+                ) : (
+                  <div className="text-gray-500">No content available.</div>
+                )}
+              </div>
             </div>
           )}
         </Card.Content>

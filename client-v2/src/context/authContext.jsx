@@ -5,6 +5,7 @@ import {
   getCurrentUser as getCurrentUserService,
 } from "../services/authService";
 import axios from "axios";
+import { logger } from "../utils/logger";
 
 const AuthContext = createContext();
 
@@ -80,7 +81,7 @@ export const AuthProvider = ({ children }) => {
         try {
           await getCurrentUser();
         } catch (error) {
-          console.error("Auth check failed:", error);
+          logger.warn("Auth check failed:", error);
         }
       }
       setLoading(false);

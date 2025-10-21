@@ -1,4 +1,5 @@
 import axios from "axios";
+import { logger } from "../utils/logger";
 
 const API_URL = import.meta.env.VITE_API_URL;
 if (!API_URL) {
@@ -20,7 +21,7 @@ export async function getDocumentationPlan(projectId, token) {
     );
     return res.data;
   } catch (error) {
-    console.error("Documentation plan error:", error.response?.data || error);
+    logger.error("Documentation plan error:", error.response?.data || error);
     throw error;
   }
 }
@@ -48,25 +49,12 @@ export async function generateDocumentation(projectId, token, opts = {}) {
     );
     return res.data;
   } catch (error) {
-    console.error(
+    logger.error(
       "Generate documentation error:",
       error.response?.data || error
     );
     throw error;
   }
-}
-
-export async function demoGenerateSingle(code) {
-  const res = await axios.post(`${API_URL}/documentation/demo`, { code });
-  return res.data;
-}
-
-export async function demoGenerateBatch(code, filename) {
-  const res = await axios.post(`${API_URL}/documentation/demo/batch`, {
-    code,
-    filename,
-  });
-  return res.data;
 }
 
 export async function listDocumentationRevisions(projectId, token) {

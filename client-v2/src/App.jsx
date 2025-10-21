@@ -20,10 +20,10 @@ import AdminFiles from "./pages/admin/AdminFiles";
 import AdminProjects from "./pages/admin/AdminProjects";
 import AdminDocs from "./pages/admin/AdminDocs";
 import GenerateDocumentation from "./pages/GenerateDocumentation";
-import HFDemoTest from "./pages/HFDemoTest";
 import DocumentationDetails from "./pages/DocumentationDetails";
 import AdminDocDetails from "./pages/admin/AdminDocDetails";
 import DocumentationBrowser from "./pages/DocumentationBrowser";
+import ErrorPage from "./pages/ErrorPage";
 
 function App() {
   return (
@@ -83,7 +83,8 @@ function App() {
                 path="/projects/:projectId/documentation/browser"
                 element={<DocumentationBrowser />}
               />
-              <Route path="/debug/hf-demo" element={<HFDemoTest />} />
+              <Route path="/error" element={<ErrorPage />} />
+              <Route path="*" element={<ErrorPage />} />
             </Route>
           </Routes>
           {/* Toast notifications */}

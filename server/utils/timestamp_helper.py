@@ -3,6 +3,9 @@ Helper functions for updating project timestamps
 """
 from datetime import datetime
 from bson import ObjectId
+import logging
+
+logger = logging.getLogger("timestamp")
 
 async def update_project_timestamp(project_id: str, db):
     """
@@ -15,4 +18,4 @@ async def update_project_timestamp(project_id: str, db):
         )
     except Exception as e:
         # Log the error but don't fail the operation
-        print(f"Warning: Could not update timestamp for project {project_id}. Error: {e}")
+        logger.warning("Could not update timestamp for project %s. Error: %s", project_id, e)

@@ -25,5 +25,5 @@ client = AsyncIOMotorClient(MONGODB_URI)  # Singleton instance
 db = client[DB_NAME]
 
 async def get_db():
-    print("get_db called")
+    logger.debug("get_db called")
     yield db

@@ -37,7 +37,7 @@ export default function GenerateDocumentation() {
   const [advTopK, setAdvTopK] = useState(0);
   const [genStart, setGenStart] = useState(null);
   const [elapsed, setElapsed] = useState(0);
-  const [bootingUp, setBootingUp] = useState(false);
+  const [modelStatus, setModelStatus] = useState("idle");
 
   useEffect(() => {
     let timer;
@@ -51,13 +51,6 @@ export default function GenerateDocumentation() {
     }
     return () => timer && clearInterval(timer);
   }, [genLoading, genStart]);
-
-  useEffect(() => {
-    // If generation takes longer than 5s, hint that the model may be warming up
-    if (genLoading && elapsed >= 5 && !bootingUp) {
-      setBootingUp(true);
-    }
-  }, [genLoading, elapsed, bootingUp]);
 
   useEffect(() => {
     let mounted = true;
@@ -131,26 +124,30 @@ export default function GenerateDocumentation() {
   const handleGenerate = async () => {
     if (!projectId || !token) return;
     setGenLoading(true);
-    setBootingUp(false);
+    setModelStatus("processing");
     setGenStart(Date.now());
 
     const maxAttempts = 3;
     let attempt = 0;
 
     while (attempt < maxAttempts) {
+      setModelStatus("processing");
       try {
         const res = await generateDocumentation(projectId, token, {
-          batchSize: 2,
+          // batchSize intentionally omitted to let server env decide
           temperature: advTemperature,
           topP: advTopP,
           topK: advTopK,
         });
-        // Success -> toast with mins/secs and continue
-        const elapsedSecs = Number(res?.generation_time_seconds ?? elapsed) || 0;
+        setModelStatus("processing");
+        const elapsedSecs =
+          Number(res?.generation_time_seconds ?? elapsed) || 0;
         const mins = Math.floor(elapsedSecs / 60);
         const secs = Math.floor(elapsedSecs % 60);
         showSuccess(
-          `Generated ${res?.results?.length || 0} docstrings in ${mins}m ${secs}s`
+          `Generated ${
+            res?.results?.length || 0
+          } docstrings in ${mins}m ${secs}s`
         );
         try {
           await updateProject(projectId, { status: "completed" }, token);
@@ -164,19 +161,21 @@ export default function GenerateDocumentation() {
       } catch (e) {
         const status = e?.response?.status;
         if (status && status >= 500) {
-          // Indicate warm-up and retry automatically
           attempt += 1;
-          setBootingUp(true);
+          setModelStatus("booting");
           if (attempt < maxAttempts) {
-            const backoff = attempt === 1 ? 5000 : attempt === 2 ? 10000 : 20000;
+            const backoff =
+              attempt === 1 ? 5000 : attempt === 2 ? 10000 : 20000;
             await new Promise((r) => setTimeout(r, backoff));
-            continue; // retry
+            continue;
           } else {
-            // Give final feedback after retries exhausted
             showError(
               "The model service is starting up (503/5xx). Please wait a moment and try again."
             );
           }
+        } else if (status && status >= 400) {
+          setModelStatus("paused");
+          showError("Model is currently unavailable. Please try again later.");
         } else {
           const msg =
             e?.response?.data?.detail || e?.message || "Generation failed";
@@ -187,7 +186,7 @@ export default function GenerateDocumentation() {
     }
 
     setGenLoading(false);
-    setBootingUp(false);
+    setModelStatus("idle");
     setGenStart(null);
   };
 
@@ -511,9 +510,11 @@ export default function GenerateDocumentation() {
           <div className="bg-white p-6 rounded shadow w-full max-w-md text-center space-y-3">
             <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
             <div className="font-semibold">
-              {bootingUp
-                ? "Model service is starting up… Retrying shortly."
-                : "Generating documentation…"}
+              {modelStatus === "booting"
+                ? "Model service is booting up..."
+                : modelStatus === "paused"
+                ? "Model is currently unavailable. Please try again later."
+                : "Generating documentation"}
             </div>
             <div className="text-sm text-gray-500">
               Large projects may take several minutes. Please do not close this

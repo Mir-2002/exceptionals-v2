@@ -8,6 +8,7 @@ from utils.project_verification import get_and_check_project_ownership
 import logging
 from bson import ObjectId
 from utils.doc_templates import render_html, render_markdown, render_pdf
+import os
 
 logger = logging.getLogger("documentation")
 
@@ -54,7 +55,16 @@ async def generate_documentation(
           # Optional HF flags
           if "clean_up_tokenization_spaces" in opts:
             params["clean_up_tokenization_spaces"] = bool(opts.get("clean_up_tokenization_spaces"))
-      resp = await generate_documentation_with_hf(project_id, db, batch_size=batch_size, parameters=params, created_by=created_by)
+
+      # Allow server to pick an effective batch size when client doesn't specify
+      try:
+        env_bs = int(os.getenv("HF_BATCH_SIZE", "8"))
+      except Exception:
+        env_bs = 8
+      eff_bs = batch_size or env_bs
+      eff_bs = max(1, min(64, eff_bs))
+
+      resp = await generate_documentation_with_hf(project_id, db, batch_size=eff_bs, parameters=params, created_by=created_by)
       logger.info(f"[GEN] Completed generation for project={project_id}, items={len(resp.results)}")
       return resp
     except Exception as e:
