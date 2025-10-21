@@ -13,8 +13,6 @@ venv/
 # Node / Vite
 node_modules/
 client/node_modules/
-client-v2/node_modules/
-client-v2/dist/
 client/dist/
 .DS_Store
 npm-debug.log*
@@ -23,7 +21,6 @@ yarn-error.log*
 
 # Local env files (do not commit secrets)
 client/.env
-client-v2/.env
 
 # Editor/OS
 .vscode/

@@ -8,10 +8,14 @@ from utils.db import get_db
 from utils.auth import verify_password
 from fastapi.security import OAuth2PasswordBearer
 from bson import ObjectId
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Secret key and algorithm for JWT
-SECRET_KEY = "your-secret-key"
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
