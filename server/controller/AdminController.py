@@ -85,6 +85,41 @@ async def cleanup_orphaned_files(db, current_user):
         await db.files.delete_many({"_id": {"$in": orphan_ids}})
     return {"detail": f"Removed {len(orphan_ids)} orphaned files"}
 
+async def cleanup_orphaned_projects(db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    # Build valid user id set
+    user_ids = set(str(u["_id"]) for u in await db.users.find({}, {"_id": 1}).to_list(length=None))
+    # Find projects with missing owner
+    projects = await db.projects.find({}, {"_id": 1, "user_id": 1}).to_list(length=None)
+    orphan_project_ids = [str(p["_id"]) for p in projects if p.get("user_id") not in user_ids]
+    deleted_projects = 0
+    deleted_files = 0
+    deleted_docs = 0
+    if orphan_project_ids:
+        # Delete files of those projects
+        res_files = await db.files.delete_many({"project_id": {"$in": orphan_project_ids}})
+        deleted_files = res_files.deleted_count or 0
+        # Delete docs of those projects
+        res_docs = await db.documentations.delete_many({"project_id": {"$in": orphan_project_ids}})
+        deleted_docs = res_docs.deleted_count or 0
+        # Delete projects
+        res_proj = await db.projects.delete_many({"_id": {"$in": [ObjectId(pid) for pid in orphan_project_ids]}})
+        deleted_projects = res_proj.deleted_count or 0
+    return {
+        "detail": f"Removed {deleted_projects} orphaned projects, {deleted_files} files, {deleted_docs} docs"
+    }
+
+async def cleanup_orphaned_documentations(db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    project_ids = set(str(p["_id"]) for p in await db.projects.find({}, {"_id": 1}).to_list(length=None))
+    docs = await db.documentations.find({}, {"_id": 1, "project_id": 1}).to_list(length=None)
+    orphan_doc_ids = [d["_id"] for d in docs if d.get("project_id") not in project_ids]
+    deleted_docs = 0
+    if orphan_doc_ids:
+        res = await db.documentations.delete_many({"_id": {"$in": orphan_doc_ids}})
+        deleted_docs = res.deleted_count or 0
+    return {"detail": f"Removed {deleted_docs} orphaned documentation revisions"}
+
 # Documentations
 async def list_documentations(db, current_user):
     await _ensure_admin_or_bootstrap(db, current_user)

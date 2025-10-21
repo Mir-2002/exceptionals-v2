@@ -103,3 +103,19 @@ export async function downloadDocumentationRevision(
   );
   return res;
 }
+
+export async function updateDocumentationRevision(
+  projectId,
+  revisionId,
+  token,
+  payload
+) {
+  const res = await axios.patch(
+    `${API_URL}/documentation/projects/${projectId}/revisions/${revisionId}`,
+    payload,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return res.data;
+}

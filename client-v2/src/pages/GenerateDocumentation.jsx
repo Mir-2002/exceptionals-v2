@@ -32,9 +32,32 @@ export default function GenerateDocumentation() {
   const [loading, setLoading] = useState(true);
   const [genLoading, setGenLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [advTemperature, setAdvTemperature] = useState(0.7);
-  const [advTopP, setAdvTopP] = useState(0.9);
-  const [advTopK, setAdvTopK] = useState(50);
+  const [advTemperature, setAdvTemperature] = useState(0);
+  const [advTopP, setAdvTopP] = useState(0);
+  const [advTopK, setAdvTopK] = useState(0);
+  const [genStart, setGenStart] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [bootingUp, setBootingUp] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (genLoading && genStart) {
+      timer = setInterval(() => {
+        const secs = Math.floor((Date.now() - genStart) / 1000);
+        setElapsed(secs);
+      }, 500);
+    } else {
+      setElapsed(0);
+    }
+    return () => timer && clearInterval(timer);
+  }, [genLoading, genStart]);
+
+  useEffect(() => {
+    // If generation takes longer than 5s, hint that the model may be warming up
+    if (genLoading && elapsed >= 5 && !bootingUp) {
+      setBootingUp(true);
+    }
+  }, [genLoading, elapsed, bootingUp]);
 
   useEffect(() => {
     let mounted = true;
@@ -108,41 +131,70 @@ export default function GenerateDocumentation() {
   const handleGenerate = async () => {
     if (!projectId || !token) return;
     setGenLoading(true);
-    try {
-      const res = await generateDocumentation(projectId, token, {
-        batchSize: 2,
-        temperature: advTemperature,
-        topP: advTopP,
-        topK: advTopK,
-      });
-      showSuccess(
-        `Generated ${res?.results?.length || 0} docstrings in ${
-          res?.generation_time_seconds ?? "?"
-        }s`
-      );
-      // Mark project complete client-side as well
+    setBootingUp(false);
+    setGenStart(Date.now());
+
+    const maxAttempts = 3;
+    let attempt = 0;
+
+    while (attempt < maxAttempts) {
       try {
-        await updateProject(projectId, { status: "completed" }, token);
-      } catch {}
-      // Fetch latest revision and navigate to details (after generation is fully done)
-      const revisions = await listDocumentationRevisions(projectId, token);
-      const latest = revisions?.revisions?.[0];
-      if (latest?.id) {
-        navigate(`/projects/${projectId}/documentation/${latest.id}`);
+        const res = await generateDocumentation(projectId, token, {
+          batchSize: 2,
+          temperature: advTemperature,
+          topP: advTopP,
+          topK: advTopK,
+        });
+        // Success -> toast with mins/secs and continue
+        const elapsedSecs = Number(res?.generation_time_seconds ?? elapsed) || 0;
+        const mins = Math.floor(elapsedSecs / 60);
+        const secs = Math.floor(elapsedSecs % 60);
+        showSuccess(
+          `Generated ${res?.results?.length || 0} docstrings in ${mins}m ${secs}s`
+        );
+        try {
+          await updateProject(projectId, { status: "completed" }, token);
+        } catch {}
+        const revisions = await listDocumentationRevisions(projectId, token);
+        const latest = revisions?.revisions?.[0];
+        if (latest?.id) {
+          navigate(`/projects/${projectId}/documentation/${latest.id}`);
+        }
+        break; // exit retry loop on success
+      } catch (e) {
+        const status = e?.response?.status;
+        if (status && status >= 500) {
+          // Indicate warm-up and retry automatically
+          attempt += 1;
+          setBootingUp(true);
+          if (attempt < maxAttempts) {
+            const backoff = attempt === 1 ? 5000 : attempt === 2 ? 10000 : 20000;
+            await new Promise((r) => setTimeout(r, backoff));
+            continue; // retry
+          } else {
+            // Give final feedback after retries exhausted
+            showError(
+              "The model service is starting up (503/5xx). Please wait a moment and try again."
+            );
+          }
+        } else {
+          const msg =
+            e?.response?.data?.detail || e?.message || "Generation failed";
+          showError(msg);
+        }
+        break; // exit loop on non-retryable or after final retry
       }
-    } catch (e) {
-      const msg =
-        e?.response?.data?.detail || e?.message || "Generation failed";
-      showError(msg);
-    } finally {
-      setGenLoading(false);
     }
+
+    setGenLoading(false);
+    setBootingUp(false);
+    setGenStart(null);
   };
 
   if (loading) {
     return (
       <div className="p-6">
-        <LoadingSpinner text="Loading documentation plan… The model may be cold-starting from scale-to-zero; first request can take up to a couple of minutes." />
+        <LoadingSpinner text="Loading documentation plan… The model may be cold-starting from scale-to-zero; first request can take a few tries." />
       </div>
     );
   }
@@ -214,10 +266,13 @@ export default function GenerateDocumentation() {
         {showAdvanced && (
           <Card.Content>
             {/* Warning section */}
-            <div className="mb-4 p-3 rounded border border-yellow-300 bg-yellow-50 text-yellow-800 text-sm">
+            <div className="mb-4 p-3 rounded border border-red-300 bg-red-50 text-red-800 text-sm">
               Unrealistic parameters may induce the model to hallucinate and
-              generate faulty output. We recommend sticking to the defaults, or
-              setting none at all, for the best quality.
+              generate faulty output.{" "}
+              <span className="font-semibold">
+                We recommend sticking to the defaults, or setting none at all,
+                for the best quality.
+              </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -347,7 +402,7 @@ export default function GenerateDocumentation() {
                           language="python"
                           style={docco}
                           customStyle={{
-                            height: 192,
+                            maxHeight: 140,
                             overflow: "auto",
                             fontSize: "12px",
                           }}
@@ -392,7 +447,7 @@ export default function GenerateDocumentation() {
                             language="python"
                             style={docco}
                             customStyle={{
-                              height: 192,
+                              maxHeight: 140,
                               overflow: "auto",
                               fontSize: "12px",
                             }}
@@ -425,7 +480,7 @@ export default function GenerateDocumentation() {
                                       language="python"
                                       style={docco}
                                       customStyle={{
-                                        height: 160,
+                                        maxHeight: 120,
                                         overflow: "auto",
                                         fontSize: "12px",
                                       }}
@@ -455,10 +510,16 @@ export default function GenerateDocumentation() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow w-full max-w-md text-center space-y-3">
             <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
-            <div className="font-semibold">Generating documentation…</div>
-            <div className="text-sm text-gray-500">
-              This may take a minute. Please keep this tab open.
+            <div className="font-semibold">
+              {bootingUp
+                ? "Model service is starting up… Retrying shortly."
+                : "Generating documentation…"}
             </div>
+            <div className="text-sm text-gray-500">
+              Large projects may take several minutes. Please do not close this
+              window.
+            </div>
+            <div className="text-xs text-gray-600">Elapsed: {elapsed}s</div>
           </div>
         </div>
       )}

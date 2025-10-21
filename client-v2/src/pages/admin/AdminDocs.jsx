@@ -4,6 +4,7 @@ import { useAuth } from "../../context/authContext";
 import {
   adminListDocumentations,
   adminDeleteDocumentation,
+  cleanupOrphanDocs,
 } from "../../services/adminService";
 import { Button, Card, LoadingSpinner } from "../../components/ui";
 
@@ -75,9 +76,29 @@ const AdminDocs = () => {
     <main className="p-6 max-w-5xl mx-auto space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Manage Documentations</h2>
-        <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
-          ← Back
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/admin")}
+          >
+            ← Back
+          </Button>
+          <Button
+            variant="warning"
+            onClick={async () => {
+              try {
+                const res = await cleanupOrphanDocs(token);
+                showSuccess(res?.detail || "Cleanup done");
+                setRows((prev) => prev.filter(Boolean));
+              } catch {
+                /* ignore */
+              }
+            }}
+          >
+            Cleanup Orphaned Documents
+          </Button>
+        </div>
       </div>
 
       {loading ? (

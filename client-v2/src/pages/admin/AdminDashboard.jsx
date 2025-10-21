@@ -28,7 +28,9 @@ const AdminDashboard = () => {
           className="cursor-pointer hover:shadow-md transition"
         >
           <h3 className="text-xl font-semibold mb-2">Manage Projects</h3>
-          <p className="text-gray-600">View and delete projects.</p>
+          <p className="text-gray-600">
+            View, delete, and cleanup orphaned projects.
+          </p>
         </Card>
         <Card
           onClick={() => navigate("/admin/documentations")}
@@ -36,7 +38,7 @@ const AdminDashboard = () => {
         >
           <h3 className="text-xl font-semibold mb-2">Manage Documentations</h3>
           <p className="text-gray-600">
-            View and manage documentation revisions.
+            View and manage documentation revisions; cleanup orphaned docs.
           </p>
         </Card>
       </div>

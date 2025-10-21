@@ -14,7 +14,13 @@ import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { showSuccess, showError, showWarning } from "../utils/toast";
 import { FaTrashAlt } from "react-icons/fa";
-import { FiFolder, FiUpload, FiPlay, FiArrowLeft } from "react-icons/fi";
+import {
+  FiFolder,
+  FiUpload,
+  FiPlay,
+  FiArrowLeft,
+  FiEdit,
+} from "react-icons/fi";
 import { listDocumentationRevisions } from "../services/documentationService";
 import { Button } from "../components/ui";
 
@@ -130,11 +136,14 @@ const ProjectDetails = () => {
       showSuccess("Files uploaded successfully!");
       setFiles([]);
 
-      // Await both operations to ensure they complete before showing success
       await Promise.all([fetchProject(), fetchFileTree()]);
     } catch (err) {
-      console.error("Upload error:", err);
-      showError(err.message || "Failed to upload files. Please try again.");
+      const msg =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Failed to upload files. Please try again.";
+      // Surface server-side limit messages (100 files, 300 items) only when triggered
+      showError(msg);
     } finally {
       setUploading(false);
     }
@@ -332,10 +341,20 @@ const ProjectDetails = () => {
       <div className="w-[500px] p-6 border rounded-lg shadow bg-white">
         {/* Project Details */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2 break-words flex items-center gap-2">
-            <FiFolder className="text-blue-600" />
-            {project.name}
-          </h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-2xl font-bold break-words flex items-center gap-2">
+              <FiFolder className="text-blue-600" />
+              {project.name}
+            </h2>
+            <Button
+              size="sm"
+              variant="secondary"
+              title="Edit project details"
+              onClick={() => navigate(`/projects/${projectId}/edit`)}
+            >
+              <FiEdit />
+            </Button>
+          </div>
           <div className="mb-2">
             <span className="font-semibold">Description:</span>
             <span className="ml-2 text-gray-700 break-words">

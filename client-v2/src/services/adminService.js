@@ -36,6 +36,15 @@ export async function deleteProject(projectId, token) {
   return res.data;
 }
 
+export async function cleanupOrphanProjects(token) {
+  const res = await axios.post(
+    `${API_URL}/admin/projects/cleanup-orphans`,
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+}
+
 // Files
 export async function getAllFiles(token) {
   const res = await axios.get(`${API_URL}/admin/files`, {
@@ -72,6 +81,15 @@ export async function adminDeleteDocumentation(revisionId, token) {
     {
       headers: { Authorization: `Bearer ${token}` },
     }
+  );
+  return res.data;
+}
+
+export async function cleanupOrphanDocs(token) {
+  const res = await axios.post(
+    `${API_URL}/admin/documentations/cleanup-orphans`,
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
   );
   return res.data;
 }

@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/authContext";
 import { showError, showSuccess } from "../../utils/toast";
-import { getAllProjects, deleteProject } from "../../services/adminService";
+import {
+  getAllProjects,
+  deleteProject,
+  cleanupOrphanProjects,
+} from "../../services/adminService";
 import { useNavigate } from "react-router-dom";
 import { Button, Card, LoadingSpinner } from "../../components/ui";
 
@@ -49,9 +53,29 @@ const AdminProjects = () => {
     <main className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Manage Projects</h2>
-        <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
-          ← Back
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/admin")}
+          >
+            ← Back
+          </Button>
+          <Button
+            variant="warning"
+            onClick={async () => {
+              try {
+                const res = await cleanupOrphanProjects(token);
+                showSuccess(res?.detail || "Cleanup done");
+                load();
+              } catch {
+                showError("Cleanup failed");
+              }
+            }}
+          >
+            Cleanup Orphaned Projects
+          </Button>
+        </div>
       </div>
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">

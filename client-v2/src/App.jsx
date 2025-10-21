@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Layout from "./components/Layout";
 import CreateProject from "./pages/CreateProject";
 import ProjectDetails from "./pages/ProjectDetails";
+import EditProjectDetails from "./pages/EditProjectDetails";
 import SetPreferences from "./pages/SetPreferences";
 import SetFilePreferences from "./pages/SetFilePreferences";
 import SetFunctionClassPreference from "./pages/SetFunctionClassPreference";
@@ -50,6 +51,10 @@ function App() {
               <Route path="/projects/create" element={<CreateProject />} />
               <Route path="/settings" element={<UserSettings />} />
               <Route path="/projects/:projectId" element={<ProjectDetails />} />
+              <Route
+                path="/projects/:projectId/edit"
+                element={<EditProjectDetails />}
+              />
               <Route
                 path="/projects/:projectId/preferences"
                 element={<SetPreferences />}

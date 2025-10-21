@@ -9,6 +9,8 @@ from controller.AdminController import (
     admin_delete_project as ctl_delete_project,
     list_files as ctl_list_files,
     cleanup_orphaned_files as ctl_cleanup_orphans,
+    cleanup_orphaned_projects as ctl_cleanup_orphaned_projects,
+    cleanup_orphaned_documentations as ctl_cleanup_orphaned_docs,
     list_documentations as ctl_list_documentations,
     admin_delete_documentation as ctl_delete_documentation,
     admin_get_documentation as ctl_get_documentation,
@@ -38,6 +40,10 @@ async def list_projects(db=Depends(get_db), current_user=Depends(get_current_use
 async def admin_delete_project(project_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):
     return await ctl_delete_project(project_id, db, current_user)
 
+@router.post("/projects/cleanup-orphans")
+async def cleanup_orphaned_projects(db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_cleanup_orphaned_projects(db, current_user)
+
 # Files
 @router.get("/files")
 async def list_files(db=Depends(get_db), current_user=Depends(get_current_user)):
@@ -59,3 +65,7 @@ async def get_documentation(revision_id: str, db=Depends(get_db), current_user=D
 @router.delete("/documentations/{revision_id}")
 async def delete_documentation(revision_id: str, db=Depends(get_db), current_user=Depends(get_current_user)):
     return await ctl_delete_documentation(revision_id, db, current_user)
+
+@router.post("/documentations/cleanup-orphans")
+async def cleanup_orphaned_documentations(db=Depends(get_db), current_user=Depends(get_current_user)):
+    return await ctl_cleanup_orphaned_docs(db, current_user)

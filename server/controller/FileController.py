@@ -9,10 +9,19 @@ from utils.db import get_db
 from utils.timestamp_helper import update_project_timestamp
 from utils.parser import extract_functions_classes_from_content, extract_py_files_from_zip
 
+MAX_FILES_PER_UPLOAD = 100
+MAX_ITEMS_PER_UPLOAD = 300  # functions + classes + methods
+
 async def upload_file(project_id: str, file: UploadFile = File(...), db=Depends(get_db)):
     try:
         content = (await file.read()).decode("utf-8")
         parsed = extract_functions_classes_from_content(content)
+        # Count items (functions + classes + methods)
+        methods_count = sum(len(c.get("methods") or []) for c in (parsed.get("classes") or []))
+        total_items = len(parsed.get("functions") or []) + len(parsed.get("classes") or []) + methods_count
+        if total_items > MAX_ITEMS_PER_UPLOAD:
+            raise HTTPException(status_code=400, detail=f"Upload rejected: total items ({total_items}) exceed limit of {MAX_ITEMS_PER_UPLOAD}.")
+
         file_data = {
             "project_id": project_id,
             "filename": file.filename,
@@ -22,21 +31,17 @@ async def upload_file(project_id: str, file: UploadFile = File(...), db=Depends(
         result = await db.files.insert_one(file_data)
         
         try:
-            # 1. Fetch all files for the project to get a complete list
             all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
-            
-            # 2. Calculate the new status using the function from ProjectController
             new_status = calculate_project_status(all_project_files)
-            
-            # 3. Update the project document with the new status and timestamp
             await db.projects.update_one(
                 {"_id": ObjectId(project_id)},
                 {"$set": {"status": new_status, "updated_at": datetime.now()}}
             )
         except Exception as e:
-            # Optional: Log this error, but don't fail the whole upload because of it
             print(f"Warning: Could not update project status for {project_id}. Error: {e}")
         return {"file_id": str(result.inserted_id), "filename": file.filename}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -48,28 +53,36 @@ async def upload_project_files(project_id: str, files: list[UploadFile], db=Depe
     Upload multiple individual Python files to a project.
     """
     try:
+        # Enforce file count limit
+        py_files = [f for f in files if f.filename.endswith('.py')]
+        if len(py_files) > MAX_FILES_PER_UPLOAD:
+            raise HTTPException(status_code=400, detail=f"Upload rejected: maximum {MAX_FILES_PER_UPLOAD} files per upload.")
+
+        docs = []
+        total_items = 0
         uploaded_files = []
-        
-        for file in files:
-            if not file.filename.endswith('.py'):
-                continue  # Skip non-Python files
-                
+        for file in py_files:
             content = (await file.read()).decode("utf-8")
             parsed = extract_functions_classes_from_content(content)
-            
-            file_data = {
+            methods_count = sum(len(c.get("methods") or []) for c in (parsed.get("classes") or []))
+            total_items += len(parsed.get("functions") or []) + len(parsed.get("classes") or []) + methods_count
+            docs.append({
                 "project_id": project_id,
-                "filename": file.filename,  # Just the filename, will be placed in root
+                "filename": file.filename,
                 "functions": parsed["functions"],
-                "classes": parsed["classes"]
-            }
-            
-            result = await db.files.insert_one(file_data)
-            uploaded_files.append({
-                "file_id": str(result.inserted_id),
-                "filename": file.filename
+                "classes": parsed["classes"],
             })
-        
+            uploaded_files.append({"filename": file.filename})
+
+        if total_items > MAX_ITEMS_PER_UPLOAD:
+            raise HTTPException(status_code=400, detail=f"Upload rejected: total items ({total_items}) exceed limit of {MAX_ITEMS_PER_UPLOAD}.")
+
+        if docs:
+            res = await db.files.insert_many(docs)
+            # backfill ids
+            for i, _id in enumerate(res.inserted_ids):
+                uploaded_files[i]["file_id"] = str(_id)
+
         # Update project status after all uploads
         try:
             all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
@@ -87,6 +100,8 @@ async def upload_project_files(project_id: str, files: list[UploadFile], db=Depe
             "uploaded_files": uploaded_files
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -97,9 +112,28 @@ async def upload_project_zip(project_id: str, zip_file: UploadFile = File(...), 
     try:
         zip_bytes = await zip_file.read()
         extracted_files = extract_py_files_from_zip(zip_bytes)
+        # Enforce max files limit
+        if len(extracted_files) > MAX_FILES_PER_UPLOAD:
+            raise HTTPException(status_code=400, detail=f"Upload rejected: maximum {MAX_FILES_PER_UPLOAD} files per upload.")
+        # Compute total items across extracted files
+        total_items = 0
+        for f in extracted_files:
+            methods_count = sum(len(c.get("methods") or []) for c in (f.get("classes") or []))
+            total_items += len(f.get("functions") or []) + len(f.get("classes") or []) + methods_count
+        if total_items > MAX_ITEMS_PER_UPLOAD:
+            raise HTTPException(status_code=400, detail=f"Upload rejected: total items ({total_items}) exceed limit of {MAX_ITEMS_PER_UPLOAD}.")
+        # Batch insert for speed
+        docs = []
         for file_data in extracted_files:
-            file_data["project_id"] = project_id
-            await db.files.insert_one(file_data)
+            docs.append({
+                "project_id": project_id,
+                "filename": file_data["filename"],
+                "functions": file_data["functions"],
+                "classes": file_data["classes"],
+            })
+        if docs:
+            await db.files.insert_many(docs)
+        
         try:
             all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
             new_status = calculate_project_status(all_project_files)
@@ -110,6 +144,8 @@ async def upload_project_zip(project_id: str, zip_file: UploadFile = File(...), 
         except Exception as e:
             print(f"Warning: Could not update project status for {project_id} after zip upload. Error: {e}")
         return {"detail": "Project uploaded and processed", "files_processed": len(extracted_files)}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,

@@ -303,6 +303,8 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
         "preferences_snapshot": prefs_raw,
         "created_by": created_by or None,
         "user_id": (created_by.get("id") if isinstance(created_by, dict) else None),
+        # Persist elapsed time for UI counters
+        "generation_time_seconds": round(generation_time, 2),
     }
     inserted = await db.documentations.insert_one(doc_record)
     revision_id = str(inserted.inserted_id)
