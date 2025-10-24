@@ -45,8 +45,8 @@ export async function generateDocumentation(projectId, token, opts = {}) {
           Authorization: `Bearer ${token}`,
         },
         params: batchSize ? { batch_size: batchSize } : {},
-        // Enforce a hard client-side timeout (default 120s)
-        timeout: typeof timeoutMs === "number" ? timeoutMs : 120000,
+        // Default to no timeout to allow long-running generations
+        timeout: typeof timeoutMs === "number" ? timeoutMs : 0,
         // Allow caller to cancel explicitly (AbortController)
         signal,
       }
@@ -65,7 +65,12 @@ export async function listDocumentationRevisions(projectId, token) {
   const res = await axios.get(
     `${API_URL}/documentation/projects/${projectId}/revisions`,
     {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+      params: { t: Date.now() },
     }
   );
   return res.data;

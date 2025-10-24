@@ -39,15 +39,10 @@ export default function GenerateDocumentation() {
   const [elapsed, setElapsed] = useState(0);
   const [modelStatus, setModelStatus] = useState("idle");
   const controllerRef = useRef(null);
-  const timeoutRef = useRef(null);
 
   useEffect(() => {
     return () => {
       try {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
         controllerRef.current?.abort("Component unmounted");
       } catch {}
     };
@@ -135,6 +130,24 @@ export default function GenerateDocumentation() {
     return map;
   }, [items]);
 
+  const navigateToLatestWhenReady = async () => {
+    // Poll for latest revision up to ~60s
+    const start = Date.now();
+    const maxMs = 60000;
+    while (Date.now() - start < maxMs) {
+      try {
+        const revisions = await listDocumentationRevisions(projectId, token);
+        const latest = revisions?.revisions?.[0];
+        if (latest?.id) {
+          navigate(`/projects/${projectId}/documentation/${latest.id}`);
+          return true;
+        }
+      } catch {}
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    return false;
+  };
+
   const handleGenerate = async () => {
     if (!projectId || !token) return;
     setGenLoading(true);
@@ -144,16 +157,8 @@ export default function GenerateDocumentation() {
     const maxAttempts = 3;
     let attempt = 0;
 
-    // Controller to support cancellation on timeout or user action
+    // Controller to support manual cancellation only (no auto-timeout)
     controllerRef.current = new AbortController();
-
-    // Hard timeout after 120s to cancel generation
-    const HARD_TIMEOUT_MS = 120000;
-    timeoutRef.current = setTimeout(() => {
-      try {
-        controllerRef.current?.abort("Client-side timeout after 120s");
-      } catch {}
-    }, HARD_TIMEOUT_MS);
 
     try {
       while (attempt < maxAttempts) {
@@ -164,9 +169,10 @@ export default function GenerateDocumentation() {
             topP: advTopP,
             topK: advTopK,
             signal: controllerRef.current.signal,
-            timeoutMs: HARD_TIMEOUT_MS, // axios-level timeout
+            // no hard timeout, let server finish
+            timeoutMs: 0,
           });
-          // Successful response -> keep as processing until we navigate
+          // Successful response -> show success, mark project, then navigate (poll if needed)
           setModelStatus("processing");
           const elapsedSecs =
             Number(res?.generation_time_seconds ?? elapsed) || 0;
@@ -180,14 +186,13 @@ export default function GenerateDocumentation() {
           try {
             await updateProject(projectId, { status: "completed" }, token);
           } catch {}
-          const revisions = await listDocumentationRevisions(projectId, token);
-          const latest = revisions?.revisions?.[0];
-          if (latest?.id) {
-            navigate(`/projects/${projectId}/documentation/${latest.id}`);
+          const navigated = await navigateToLatestWhenReady();
+          if (!navigated) {
+            // Fallback to browser view
+            navigate(`/projects/${projectId}/documentation/browser`);
           }
           break; // exit retry loop on success
         } catch (e) {
-          // Distinguish axios timeout/cancel
           const code = e?.code;
           const status = e?.response?.status;
           const modelHeader =
@@ -200,13 +205,10 @@ export default function GenerateDocumentation() {
 
           if (isCanceled) {
             setModelStatus("paused");
-            showError(
-              "Generation timed out after 120s and was canceled. Please try again when the model is ready."
-            );
+            showError("Generation canceled.");
             break;
           }
 
-          // Prefer explicit header if provided by server
           if (modelHeader === "booting") {
             setModelStatus("booting");
           } else if (modelHeader === "paused") {
@@ -226,7 +228,7 @@ export default function GenerateDocumentation() {
               continue;
             } else {
               showError(
-                "The model service is starting up (5xx). Please wait a moment and try again."
+                "The model service is starting up (5xx). Please wait and try again."
               );
             }
           } else if (status && status >= 400) {
@@ -242,23 +244,14 @@ export default function GenerateDocumentation() {
         }
       }
     } finally {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
       controllerRef.current = null;
       setGenStart(null);
       setGenLoading(false);
-      // Do not reset modelStatus here to avoid flicker; it will be updated on next action
     }
   };
 
   const handleCancel = () => {
     try {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
       controllerRef.current?.abort("User canceled generation");
     } catch {}
     setModelStatus("paused");

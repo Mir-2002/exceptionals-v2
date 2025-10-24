@@ -81,6 +81,26 @@ async function getCurrentUser(token) {
 const currentUser = await getCurrentUser("your-jwt-token");
 ```
 
+### 3. GitHub OAuth Login
+
+- **GET** `/api/auth/github/login`
+- Redirects user to GitHub for consent. Configure env:
+  - `GITHUB_OAUTH_CLIENT_ID`
+  - `GITHUB_OAUTH_CLIENT_SECRET`
+  - `GITHUB_OAUTH_REDIRECT_URI` (e.g., `http://localhost:5173/oauth/github/callback` on the client, which then calls backend callback)
+
+### 4. GitHub OAuth Callback
+
+- **GET** `/api/auth/github/callback?code=...`
+- **Public** (called by frontend after redirect from GitHub)
+- Exchanges code, upserts user with provider `github`, stores encrypted token, and returns `Token`.
+
+### 5. GitHub Repositories
+
+- **GET** `/api/auth/github/repos`
+- **Protected**
+- Returns the authenticated user's repositories from GitHub (subset fields).
+
 ## Authentication Flow
 
 ### Basic Login Flow
@@ -170,3 +190,6 @@ function logout() {
 - Admin status is included in the token payload
 - Store tokens securely (avoid localStorage for sensitive applications)
 - Always handle 401 responses by redirecting to login
+- GitHub token is encrypted at rest using `GITHUB_TOKEN_SECRET` (falls back to `SECRET_KEY` in dev).
+- User model now supports `auth_provider` (`local` or `github`) and `provider_id`.
+- Local registration still works; OAuth users have no local password.
