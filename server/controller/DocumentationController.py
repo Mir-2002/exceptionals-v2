@@ -232,71 +232,78 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
         async with semaphore:
             return await hf_generate_batch_async(batch, parameters=default_params)
 
-    # Create batched tasks
-    tasks = [
-        generate_batch(prompts[i:i + batch_size])
-        for i in range(0, len(prompts), batch_size)
-    ]
+    # Create batched tasks with indices so we can recover failed batches
+    batches = [(i, prompts[i:i + batch_size]) for i in range(0, len(prompts), batch_size)]
+    tasks = [generate_batch(batch_prompts) for _, batch_prompts in batches]
 
-    try:
-        all_outputs = await asyncio.gather(*tasks)
-        for batch_output in all_outputs:
-            outputs.extend(batch_output)
-    except httpx.HTTPStatusError as e:
-        code = getattr(e, "response", None).status_code if getattr(e, "response", None) is not None else 502
-        # Try to extract a meaningful message
-        detail = None
-        try:
-            detail = e.response.json()
-        except Exception:
-            try:
-                detail = e.response.text
-            except Exception:
-                detail = str(e)
-        # Map to explicit model status for the client
-        headers = {}
-        text = str(detail).lower() if detail is not None else ""
-        if code >= 500:
-            headers["X-Model-Status"] = "booting"
-        elif 400 <= code < 500:
-            headers["X-Model-Status"] = "paused"
-        raise HTTPException(status_code=code, detail=f"Upstream HF error: {detail}", headers=headers or None)
-    except Exception as e:
-        # Preserve original error in detail but mark as 502
-        raise HTTPException(status_code=502, detail=f"Model generation failed: {str(e)}")
+    # Collect results; do not fail early on errors
+    results_or_ex = await asyncio.gather(*tasks, return_exceptions=True)
 
-    # Fallback if output count mismatched
-    if len(outputs) != len(items):
-        fallback_outputs: List[str] = []
-        for p in prompts:
+    # Prepare an array for all outputs in original order, fill with None initially
+    merged_outputs: List[Optional[str]] = [None] * len(prompts)
+
+    # Track whether we saw upstream errors to decide error headers if needed
+    saw_5xx = False
+    saw_4xx = False
+
+    # Process batch results
+    for (start_idx, batch_prompts), batch_result in zip(batches, results_or_ex):
+        if isinstance(batch_result, Exception):
+            # Mark batch as failed; will fallback per-prompt below
+            if isinstance(batch_result, httpx.HTTPStatusError):
+                try:
+                    code = getattr(batch_result, "response", None).status_code if getattr(batch_result, "response", None) is not None else 0
+                except Exception:
+                    code = 0
+                if code >= 500:
+                    saw_5xx = True
+                elif code >= 400:
+                    saw_4xx = True
+            # leave as None -> fallback
+        else:
+            # Successful batch; ensure length matches, else fallback missing ones
+            for offset, out in enumerate(batch_result):
+                idx = start_idx + offset
+                if idx < len(merged_outputs):
+                    merged_outputs[idx] = str(out) if out is not None else ""
+            # If model returned fewer outputs than prompts in batch, remaining will be None -> fallback
+
+    # Fallback per-missing prompt
+    for idx, current in enumerate(merged_outputs):
+        if current is None:
+            p = prompts[idx]
             try:
                 single = await hf_generate_batch_async([p], parameters=default_params)
                 if isinstance(single, list) and len(single) > 0:
-                    fallback_outputs.append(str(single[0]).strip())
+                    merged_outputs[idx] = str(single[0]).strip()
                 else:
-                    fallback_outputs.append("")
+                    merged_outputs[idx] = ""
             except httpx.HTTPStatusError as e:
-                # On upstream error during fallback, propagate status to client
-                code = getattr(e, "response", None).status_code if getattr(e, "response", None) is not None else 502
-                headers = {}
+                # Track for potential header mapping
+                code = getattr(e, "response", None).status_code if getattr(e, "response", None) is not None else 0
                 if code >= 500:
-                    headers["X-Model-Status"] = "booting"
-                elif 400 <= code < 500:
-                    headers["X-Model-Status"] = "paused"
-                raise HTTPException(status_code=code, detail="Upstream HF error during fallback generation", headers=headers or None)
+                    saw_5xx = True
+                elif code >= 400:
+                    saw_4xx = True
+                merged_outputs[idx] = ""
             except Exception:
-                fallback_outputs.append("")
-            await asyncio.sleep(0.1)
-        outputs = fallback_outputs
+                merged_outputs[idx] = ""
+            await asyncio.sleep(0.05)
 
-    if len(outputs) != len(items):
-        raise HTTPException(
-            status_code=502,
-            detail=f"Mismatch in generation results: expected {len(items)}, got {len(outputs)}"
-        )
+    # If still any Nones (shouldn't), coerce to empty strings
+    merged_outputs = [o if o is not None else "" for o in merged_outputs]
+
+    # If everything failed, bubble up an error with a helpful header
+    if all((o or "").strip() == "" for o in merged_outputs):
+        headers = {}
+        if saw_5xx:
+            headers["X-Model-Status"] = "booting"
+        elif saw_4xx:
+            headers["X-Model-Status"] = "paused"
+        raise HTTPException(status_code=502, detail="Model generation failed for all items", headers=headers or None)
 
     results = []
-    for item, generated_text in zip(items, outputs):
+    for item, generated_text in zip(items, merged_outputs):
         results.append(DocumentationResult(
             name=item.name,
             type=item.type,
@@ -312,7 +319,7 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
 
     generation_time = time.time() - start_time
 
-    # Save revision first to obtain its id for templates
+    # Save revision first to obtain its id
     fmt = (plan.format or "HTML").upper()
 
     # Preferences snapshot for auditing/admin display
@@ -327,7 +334,6 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
     doc_record = {
         "project_id": project_id,
         "format": fmt,
-        # Do not persist rendered content/binary; generate on the fly instead
         "content": None,
         "content_type": None,
         "binary": None,
@@ -339,13 +345,9 @@ async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 
         "preferences_snapshot": prefs_raw,
         "created_by": created_by or None,
         "user_id": (created_by.get("id") if isinstance(created_by, dict) else None),
-        # Persist elapsed time for UI counters
         "generation_time_seconds": round(generation_time, 2),
     }
     inserted = await db.documentations.insert_one(doc_record)
-    revision_id = str(inserted.inserted_id)
-
-    # Rendering is deferred to retrieval/download time to save storage.
 
     # Mark project as completed once a documentation is generated
     try:

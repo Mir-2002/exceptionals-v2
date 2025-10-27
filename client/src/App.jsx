@@ -24,6 +24,8 @@ import DocumentationDetails from "./pages/DocumentationDetails";
 import AdminDocDetails from "./pages/admin/AdminDocDetails";
 import DocumentationBrowser from "./pages/DocumentationBrowser";
 import ErrorPage from "./pages/ErrorPage";
+import GithubCallback from "./pages/GithubCallback";
+import LinkRepository from "./pages/LinkRepository";
 
 function App() {
   return (
@@ -35,6 +37,7 @@ function App() {
             <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/oauth/github/callback" element={<GithubCallback />} />
 
             {/* Protected routes with header and layout */}
             <Route element={<Layout />}>
@@ -83,6 +86,7 @@ function App() {
                 path="/projects/:projectId/documentation/browser"
                 element={<DocumentationBrowser />}
               />
+              <Route path="/link-repo" element={<LinkRepository />} />
               <Route path="/error" element={<ErrorPage />} />
               <Route path="*" element={<ErrorPage />} />
             </Route>

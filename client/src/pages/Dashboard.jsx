@@ -76,12 +76,26 @@ const Dashboard = () => {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Button
-            variant="primary"
-            onClick={() => navigate("/projects/create")}
-          >
-            Create Project
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => navigate("/link-repo")}
+              disabled={user?.auth_provider !== "github"}
+              title={
+                user?.auth_provider !== "github"
+                  ? "Sign in with GitHub to link a repository"
+                  : "Link a repository"
+              }
+            >
+              Link Repository
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => navigate("/projects/create")}
+            >
+              Create Project
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}

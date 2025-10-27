@@ -22,7 +22,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 async def authenticate_user(username: str, password: str, db):
     user = await db.users.find_one({"username": username})
-    if not user or not verify_password(password, user["hashed_password"]):
+    # If user missing or has no local password (OAuth-only), fail auth
+    if not user or not user.get("hashed_password"):
+        return None
+    if not verify_password(password, user["hashed_password"]):
         return None
     return UserInDB(**user)
 
