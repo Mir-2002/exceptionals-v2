@@ -116,3 +116,16 @@ export async function updateDocumentationRevision(
   );
   return res.data;
 }
+
+// New: single-snippet demo generation (no auth required)
+export async function generateDemoDocstring(code) {
+  try {
+    const res = await axios.post(`${API_URL}/documentation/demo/generate`, {
+      code,
+    });
+    return res.data; // { docstring, docstring_raw }
+  } catch (error) {
+    logger.error("Demo generate error:", error.response?.data || error);
+    throw error;
+  }
+}

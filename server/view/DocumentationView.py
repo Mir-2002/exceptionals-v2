@@ -9,6 +9,12 @@ import logging
 from bson import ObjectId
 from utils.doc_templates import render_html, render_markdown, render_pdf
 import os
+# New imports for demo endpoint
+from utils.hf_client import hf_generate_batch_async
+from utils.doc_cleaner import clean_docstring
+from utils.parser import extract_functions_classes_from_content
+import asyncio
+import httpx
 
 logger = logging.getLogger("documentation")
 
@@ -153,3 +159,160 @@ async def download_revision(project_id: str, revision_id: str, db=Depends(get_db
     else:
         html = render_html(project_id, doc.get("results") or [], project_name=title_override, project_description=desc_override, revision_id=revision_id)
         return Response(content=html or "", media_type="text/html", headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+# ---------- Public demo endpoint for single/multi-snippet generation ----------
+@router.post("/demo/generate")
+async def generate_demo_docstring(payload: dict = Body(default={})):
+    code = (payload or {}).get("code")
+    if not isinstance(code, str) or not code.strip():
+        raise HTTPException(status_code=400, detail="'code' is required")
+
+    # Extract functions/classes/methods from pasted code
+    try:
+        parsed = extract_functions_classes_from_content(code)
+    except Exception as e:
+        logger.warning(f"[DEMO] Parser failed, falling back to raw code: {e}")
+        parsed = {"functions": [], "classes": []}
+
+    items = []
+    # Functions
+    for f in (parsed.get("functions") or []):
+        items.append({
+            "name": f.get("name", "function"),
+            "type": "function",
+            "file": "<input>",
+            "code": f.get("code", ""),
+            "parent_class": None,
+        })
+    # Classes and methods
+    for c in (parsed.get("classes") or []):
+        items.append({
+            "name": c.get("name", "class"),
+            "type": "class",
+            "file": "<input>",
+            "code": c.get("code", ""),
+            "parent_class": None,
+        })
+        for m in (c.get("methods") or []):
+            items.append({
+                "name": m.get("name", "method"),
+                "type": "method",
+                "file": "<input>",
+                "code": m.get("code", ""),
+                "parent_class": c.get("name", None),
+            })
+
+    # Fallback: if nothing extracted, treat entire input as one function snippet
+    if not items:
+        items = [{
+            "name": "snippet",
+            "type": "function",
+            "file": "<input>",
+            "code": code,
+            "parent_class": None,
+        }]
+
+    def make_prompt(it: dict) -> str:
+        header = f"{it['type'].upper()}: {it['name']}"
+        if it.get("parent_class"):
+            header += f" (class {it['parent_class']})"
+        src = it.get("code") or ""
+        if len(src) > 800:
+            src = src[:800] + "..."
+        return f"""Generate a clear docstring for this {it['type']}:
+
+{header}
+```python
+{src}
+```
+
+Docstring:"""
+
+    prompts = [make_prompt(it) for it in items]
+
+    params = {
+        "max_length": 128,
+        "temperature": 0.7,
+        "do_sample": True,
+        "clean_up_tokenization_spaces": True,
+    }
+
+    # Try batch generation with graceful retries
+    attempts = 0
+    outputs = None
+    last_exc: Exception | None = None
+    while attempts < 3:
+        try:
+            outputs = await hf_generate_batch_async(prompts, parameters=params)
+            break
+        except httpx.HTTPStatusError as e:
+            last_exc = e
+            # Respect upstream status to drive client UX
+            code_status = getattr(e, "response", None).status_code if getattr(e, "response", None) is not None else 0
+            headers = {}
+            if code_status >= 500:
+                headers["X-Model-Status"] = "booting"
+            elif code_status >= 400:
+                headers["X-Model-Status"] = "paused"
+            # Backoff before retry
+            attempts += 1
+            if attempts >= 3:
+                raise HTTPException(status_code=code_status or 502, detail="Upstream HF error (demo)", headers=headers or None)
+            await asyncio.sleep(2 * attempts)
+        except Exception as e:
+            last_exc = e
+            attempts += 1
+            if attempts >= 3:
+                raise HTTPException(status_code=502, detail=f"Demo generation failed: {str(e)}")
+            await asyncio.sleep(1.5 * attempts)
+
+    # If mismatch, fallback per-item
+    if outputs is None:
+        outputs = []
+    if len(outputs) != len(prompts):
+        fixed = [None] * len(prompts)
+        for idx, p in enumerate(prompts):
+            try:
+                single = await hf_generate_batch_async([p], parameters=params)
+                fixed[idx] = (single[0] if isinstance(single, list) and single else "")
+            except httpx.HTTPStatusError as e:
+                # Map headers but continue to fill empty string
+                pass
+            except Exception:
+                pass
+            await asyncio.sleep(0.05)
+        outputs = [o if o is not None else "" for o in fixed]
+
+    # Build cleaned results
+    results = []
+    func_count = 0
+    class_count = 0
+    method_count = 0
+    for it in items:
+        if it["type"] == "function":
+            func_count += 1
+        elif it["type"] == "class":
+            class_count += 1
+        elif it["type"] == "method":
+            method_count += 1
+
+    for it, raw in zip(items, outputs):
+        raw_s = (raw or "").strip()
+        cleaned = (clean_docstring(raw_s) or "").strip()
+        if not cleaned and raw_s:
+            cleaned = raw_s  # fallback to raw if cleaning removed everything
+        results.append({
+            "name": it["name"],
+            "type": it["type"],
+            "parent_class": it.get("parent_class"),
+            "file": it.get("file"),
+            "code": it.get("code"),
+            "docstring": cleaned,
+            "docstring_raw": raw_s,
+        })
+
+    return {
+        "count": len(results),
+        "results": results,
+        "extraction": {"functions": func_count, "classes": class_count, "methods": method_count},
+    }

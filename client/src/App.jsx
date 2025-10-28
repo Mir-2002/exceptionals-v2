@@ -26,6 +26,8 @@ import DocumentationBrowser from "./pages/DocumentationBrowser";
 import ErrorPage from "./pages/ErrorPage";
 import GithubCallback from "./pages/GithubCallback";
 import LinkRepository from "./pages/LinkRepository";
+import LandingPage from "./pages/LandingPage";
+import Guide from "./pages/Guide";
 
 function App() {
   return (
@@ -34,10 +36,16 @@ function App() {
         <PreferenceProvider>
           <Routes>
             {/* Public routes without header */}
-            <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+
             <Route path="/oauth/github/callback" element={<GithubCallback />} />
+
+            {/* Landing page with fullBleed layout */}
+            <Route element={<Layout fullBleed={true} />}>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/guide" element={<Guide />} />
+            </Route>
 
             {/* Protected routes with header and layout */}
             <Route element={<Layout />}>
