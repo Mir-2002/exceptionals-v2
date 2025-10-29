@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { AuthProvider } from "./context/authContext";
@@ -28,8 +29,24 @@ import GithubCallback from "./pages/GithubCallback";
 import LinkRepository from "./pages/LinkRepository";
 import LandingPage from "./pages/LandingPage";
 import Guide from "./pages/Guide";
+import MobilePage from "./pages/MobilePage";
 
 function App() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  if (isMobile) {
+    return <MobilePage />;
+  }
+
   return (
     <BrowserRouter>
       <AuthProvider>

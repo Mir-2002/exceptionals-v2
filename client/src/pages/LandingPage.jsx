@@ -64,14 +64,14 @@ const LandingPage = () => {
                 alt="Web Developer"
                 width={300}
                 height={300}
-                className="absolute -left-15 top-18"
+                className="absolute left-15 top-18"
               />
               <img
                 src={codereview}
                 alt="Web Developer"
                 width={300}
                 height={300}
-                className="absolute -right-15 bottom-20"
+                className="absolute right-15 bottom-20"
               />
               <h1 className="text-6xl font-bold mb-6">
                 Documentations, Made Easier.
