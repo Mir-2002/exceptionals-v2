@@ -9,6 +9,9 @@ from view.PreferencesView import router as preferences_router
 from view.AuthView import router as auth_router
 from view.DocumentationView import router as documentation_router
 from view.AdminView import router as admin_router
+from view.GithubAuthView import router as github_auth_router
+from view.GithubImportView import router as github_import_router
+from view.GithubRepoView import router as github_repo_router
 import logging
 import os
 from utils.db import get_db, db
@@ -113,3 +116,6 @@ app.include_router(preferences_router, prefix="/api", tags=["preferences"])
 app.include_router(auth_router, prefix="/api", tags=["auth"])
 app.include_router(documentation_router, prefix="/api", tags=["documentation"])
 app.include_router(admin_router, prefix="/api", tags=["admin"])
+app.include_router(github_auth_router, prefix="/api", tags=["auth"])
+app.include_router(github_import_router, prefix="/api", tags=["github"])
+app.include_router(github_repo_router, prefix="/api", tags=["github"])

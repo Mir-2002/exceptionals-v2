@@ -45,8 +45,8 @@ export async function generateDocumentation(projectId, token, opts = {}) {
           Authorization: `Bearer ${token}`,
         },
         params: batchSize ? { batch_size: batchSize } : {},
-        // Enforce a hard client-side timeout (default 120s)
-        timeout: typeof timeoutMs === "number" ? timeoutMs : 120000,
+        // Default to no timeout to allow long-running generations
+        timeout: typeof timeoutMs === "number" ? timeoutMs : 0,
         // Allow caller to cancel explicitly (AbortController)
         signal,
       }
@@ -65,7 +65,12 @@ export async function listDocumentationRevisions(projectId, token) {
   const res = await axios.get(
     `${API_URL}/documentation/projects/${projectId}/revisions`,
     {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+      params: { t: Date.now() },
     }
   );
   return res.data;
@@ -110,4 +115,17 @@ export async function updateDocumentationRevision(
     }
   );
   return res.data;
+}
+
+// New: single-snippet demo generation (no auth required)
+export async function generateDemoDocstring(code) {
+  try {
+    const res = await axios.post(`${API_URL}/documentation/demo/generate`, {
+      code,
+    });
+    return res.data; // { docstring, docstring_raw }
+  } catch (error) {
+    logger.error("Demo generate error:", error.response?.data || error);
+    throw error;
+  }
 }

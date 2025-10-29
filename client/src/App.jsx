@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { AuthProvider } from "./context/authContext";
@@ -24,17 +25,44 @@ import DocumentationDetails from "./pages/DocumentationDetails";
 import AdminDocDetails from "./pages/admin/AdminDocDetails";
 import DocumentationBrowser from "./pages/DocumentationBrowser";
 import ErrorPage from "./pages/ErrorPage";
+import GithubCallback from "./pages/GithubCallback";
+import LinkRepository from "./pages/LinkRepository";
+import LandingPage from "./pages/LandingPage";
+import Guide from "./pages/Guide";
+import MobilePage from "./pages/MobilePage";
 
 function App() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  if (isMobile) {
+    return <MobilePage />;
+  }
+
   return (
     <BrowserRouter>
       <AuthProvider>
         <PreferenceProvider>
           <Routes>
             {/* Public routes without header */}
-            <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+
+            <Route path="/oauth/github/callback" element={<GithubCallback />} />
+
+            {/* Landing page with fullBleed layout */}
+            <Route element={<Layout fullBleed={true} />}>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/guide" element={<Guide />} />
+            </Route>
 
             {/* Protected routes with header and layout */}
             <Route element={<Layout />}>
@@ -83,6 +111,7 @@ function App() {
                 path="/projects/:projectId/documentation/browser"
                 element={<DocumentationBrowser />}
               />
+              <Route path="/link-repo" element={<LinkRepository />} />
               <Route path="/error" element={<ErrorPage />} />
               <Route path="*" element={<ErrorPage />} />
             </Route>

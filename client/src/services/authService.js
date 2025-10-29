@@ -24,6 +24,10 @@ export async function login(username, password) {
   return res.data;
 }
 
+export function startGithubLogin() {
+  window.location.href = `${API_URL}/auth/github/login`;
+}
+
 // Get current user info (requires token)
 export async function getCurrentUser(token) {
   const res = await axios.get(`${API_URL}/auth/me`, {

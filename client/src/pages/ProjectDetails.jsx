@@ -99,6 +99,38 @@ const ProjectDetails = () => {
     if (projectId && token) loadRevisions();
   }, [projectId, token]);
 
+  // When project is marked completed but latestRevision hasn't appeared yet, poll briefly
+  useEffect(() => {
+    if (
+      !project ||
+      project.status?.toLowerCase() !== "completed" ||
+      latestRevision
+    )
+      return;
+    let active = true;
+    let tries = 0;
+    const maxTries = 30; // ~60s at 2s interval
+    const poll = async () => {
+      if (!active) return;
+      try {
+        const data = await listDocumentationRevisions(projectId, token);
+        const latest = data?.revisions?.[0];
+        if (latest?.id) {
+          setLatestRevision(latest);
+          return; // stop polling
+        }
+      } catch {}
+      tries += 1;
+      if (tries < maxTries) {
+        setTimeout(poll, 2000);
+      }
+    };
+    setTimeout(poll, 2000);
+    return () => {
+      active = false;
+    };
+  }, [project, latestRevision, projectId, token]);
+
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this project?"))
       return;
@@ -400,8 +432,9 @@ const ProjectDetails = () => {
           </div>
         </div>
 
-        {/* View generated documentations when at least one revision exists */}
-        {latestRevision?.id && (
+        {/* View generated documentations when at least one revision exists OR project is completed */}
+        {(latestRevision?.id ||
+          (project?.status || "").toLowerCase() === "completed") && (
           <div className="mb-6">
             <Button
               variant="primary"
