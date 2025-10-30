@@ -154,7 +154,9 @@ const Guide = () => {
         <section className="w-5/6 p-10 h-screen overflow-y-scroll">
           <article id="#introduction">
             <div>
-              <h1 className="text-4xl font-bold mb-4">Introduction</h1>
+              <h1 className="text-4xl font-bold mb-4 border-b-2 border-gray-300 py-5">
+                Introduction
+              </h1>
               <p className="mb-4">
                 Our app is an{" "}
                 <span className="font-medium">
@@ -220,6 +222,18 @@ const Guide = () => {
                 description and optional tags. From here, you can also start
                 uploading files to your project as well.
               </p>
+              <NoteBox type="tip" title="Quick Test">
+                For a quick test, feel free to download this test zip we've
+                created for your first run.
+              </NoteBox>
+              <a
+                className="inline-block mb-10 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                href={`${import.meta.env.VITE_API_URL}/public/test-zip`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Download test-zip.zip
+              </a>
               <h2 className="text-xl font-medium mb-3">Uploading Files</h2>
               <p className="mb-4">
                 You can upload ZIP files of your project, or multiple files, or
@@ -244,6 +258,7 @@ const Guide = () => {
                 branch and gather it's python files. Please note that large
                 branches may take a while to process.
               </p>
+              <div className="mt-6"></div>
             </div>
           </article>
           <article id="using-preferences" className="mt-10">
@@ -271,6 +286,14 @@ const Guide = () => {
                 first before proceeding with the other preferences. This way,
                 the other two preferences can be narrowed down to the files
                 included.
+              </p>
+              <p className="mb-4">
+                For a more in depth explanation of what each preference does,
+                please refer to the{" "}
+                <a href="#preferences" className="text-blue-700 font-medium">
+                  Preferences
+                </a>{" "}
+                section.
               </p>
             </div>
           </article>
@@ -313,14 +336,16 @@ const Guide = () => {
           </article>
           <article id="preferences" className="mt-10">
             <div>
-              <h1 className="text-4xl font-bold mb-4">Preferences</h1>
+              <h1 className="text-4xl font-bold mb-4 border-b-2 border-gray-300 py-5">
+                Preferences
+              </h1>
               <p className="mb-4">
                 Preferences makes up the heart of your documentation's template.
                 It allows you fine-grain control over what shows up in the
                 documentation, how it's generated and the format it's created
                 in. Additionally, preferences can be altered for each revision
                 of your project's documentation. This allows the user
-                flexibility in suiting the need's of their projects.
+                flexibility in suiting the needs of their projects.
               </p>
             </div>
             <NoteBox
@@ -362,10 +387,10 @@ const Guide = () => {
               </h1>
               <p className="mb-4">
                 Function Preferences allows you to include or exclude specific
-                functions from your project when generating documentation. You
-                can set a file's function/class preferences in the
-                Function/Class preference step by clicking on the file itself on
-                the left-hand window.
+                functions, classes, and methods from your project when
+                generating documentation. You can set a file's function/class
+                preferences in the Function/Class preference step by clicking on
+                the file itself on the left-hand window.
               </p>
               <p className="mb-4">
                 Much like in the File Preferences, this time, excluding a Class
@@ -435,7 +460,9 @@ const Guide = () => {
           </article>
           <article id="faqs" className="mt-10">
             <div>
-              <h1 className="text-4xl font-bold mb-4">FAQs</h1>
+              <h1 className="text-4xl font-bold mb-4 border-b-2 border-gray-300 py-5">
+                FAQs
+              </h1>
               <p className="font-medium mb-1">
                 What language does the tool support?
               </p>
@@ -443,7 +470,7 @@ const Guide = () => {
                 The tool currently only supports Python codebases.
               </p>
               <p className="font-medium mb-1">
-                Do i need GitHub to use the tool?
+                Do I need GitHub to use the tool?
               </p>
               <p className="mb-4">
                 No, you do not need GitHub to use our tool. GitHub is simply an

@@ -30,6 +30,7 @@ import LinkRepository from "./pages/LinkRepository";
 import LandingPage from "./pages/LandingPage";
 import Guide from "./pages/Guide";
 import MobilePage from "./pages/MobilePage";
+import AdminBulkDelete from "./pages/admin/AdminBulkDelete";
 
 function App() {
   const [isMobile, setIsMobile] = useState(false);
@@ -72,6 +73,7 @@ function App() {
               <Route path="/admin/files" element={<AdminFiles />} />
               <Route path="/admin/projects" element={<AdminProjects />} />
               <Route path="/admin/documentations" element={<AdminDocs />} />
+              <Route path="/admin/bulk-delete" element={<AdminBulkDelete />} />
               <Route
                 path="/admin/documentations/:revisionId"
                 element={<AdminDocDetails />}

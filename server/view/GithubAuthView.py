@@ -22,7 +22,7 @@ def github_login():
     scope = quote(scope_raw, safe="")
     url = (
         "https://github.com/login/oauth/authorize"
-        f"?client_id={client_id}&redirect_uri={quote(redirect_uri, safe='')}&scope={scope}&allow_signup=true&prompt=consent"
+        f"?client_id={client_id}&redirect_uri={quote(redirect_uri, safe='')}&scope={scope}&allow_signup=true"
     )
     return RedirectResponse(url)
 

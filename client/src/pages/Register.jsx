@@ -5,8 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { showSuccess, showError } from "../utils/toast";
 import { FiUserPlus } from "react-icons/fi";
 
-const API_URL = import.meta.env.VITE_API_URL;
-
 const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -34,9 +32,6 @@ const Register = () => {
     }
   };
 
-  const handleGithub = () => {
-    window.location.href = `${API_URL}/auth/github/login`;
-  };
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white shadow rounded-lg p-6">
@@ -85,14 +80,6 @@ const Register = () => {
           buttonText="Register"
         />
         {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
-        <div className="mt-4">
-          <button
-            onClick={handleGithub}
-            className="w-full bg-gray-900 text-white py-2 rounded hover:bg-black"
-          >
-            Sign up with GitHub
-          </button>
-        </div>
         <p className="mt-4 text-sm text-gray-600">
           Already have an account?{" "}
           <a href="/login" className="text-blue-600 hover:underline">

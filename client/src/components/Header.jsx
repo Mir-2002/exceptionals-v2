@@ -19,6 +19,15 @@ const Header = () => {
     navigate("/settings");
   };
 
+  const handleDashboard = () => {
+    setDropdownOpen(false);
+    navigate("/dashboard");
+  };
+  const handleGuide = () => {
+    setDropdownOpen(false);
+    navigate("/guide");
+  };
+
   // Close dropdown when clicking outside
   React.useEffect(() => {
     function handleClickOutside(event) {
@@ -65,9 +74,21 @@ const Header = () => {
             <div className="absolute -left-5 top-full mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg z-10">
               <button
                 className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                onClick={handleDashboard}
+              >
+                Dashboard
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 hover:bg-gray-100"
                 onClick={handleSettings}
               >
                 Settings
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                onClick={handleGuide}
+              >
+                Guide
               </button>
               <button
                 className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"

@@ -94,7 +94,15 @@ export default function LinkRepository() {
         token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
       );
       showSuccess("Repository linked and project created!");
-      navigate(`/projects/${res.data.id}`);
+      const newId = res?.data?.id;
+      if (newId) {
+        // slight delay for eventual consistency, then hard redirect
+        setTimeout(() => {
+          window.location.replace(`/projects/${newId}?fresh=1`);
+        }, 300);
+      } else {
+        navigate(`/dashboard`);
+      }
     } catch (e) {
       const msg = e?.response?.data?.detail || "Failed to link repository";
       showError(msg);
