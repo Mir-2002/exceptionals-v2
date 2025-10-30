@@ -117,15 +117,50 @@ export async function updateDocumentationRevision(
   return res.data;
 }
 
-// New: single-snippet demo generation (no auth required)
-export async function generateDemoDocstring(code) {
-  try {
-    const res = await axios.post(`${API_URL}/documentation/demo/generate`, {
-      code,
-    });
-    return res.data; // { docstring, docstring_raw }
-  } catch (error) {
-    logger.error("Demo generate error:", error.response?.data || error);
-    throw error;
+// New: single-snippet demo generation (no auth required) with retry on 5xx
+export async function generateDemoDocstring(code, opts = {}) {
+  const { maxWaitMs = 90000 } = opts;
+  const start = Date.now();
+  let attempt = 0;
+  let delayMs = 1500;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      const res = await axios.post(`${API_URL}/documentation/demo/generate`, {
+        code,
+      });
+      return res.data; // { count, results, ... }
+    } catch (error) {
+      const status = error?.response?.status;
+      const modelStatus = error?.response?.headers?.["x-model-status"];
+
+      // 4xx => user/input error, fail immediately
+      if (typeof status === "number" && status >= 400 && status < 500) {
+        logger.error("Demo generate 4xx:", error.response?.data || error);
+        throw error;
+      }
+
+      // Otherwise (5xx, network, etc.) retry until maxWaitMs
+      const elapsed = Date.now() - start;
+      if (elapsed >= maxWaitMs) {
+        logger.error(
+          `Demo generate timeout after ${attempt} attempts (${elapsed}ms). Last status: ${status} ${
+            modelStatus || ""
+          }`
+        );
+        throw error;
+      }
+
+      attempt += 1;
+      logger.warn(
+        `Demo generate transient error (attempt ${attempt}) status=${status} model=${
+          modelStatus || "unknown"
+        }. Retrying in ${delayMs}ms...`
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
+      delayMs = Math.min(Math.floor(delayMs * 1.6), 7000);
+      continue;
+    }
   }
 }

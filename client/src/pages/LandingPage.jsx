@@ -120,7 +120,11 @@ const LandingPage = () => {
             </FeatureCard>
           </section>
           <section className="w-full h-screen flex flex-row p-10 relative">
-            <img src={wave} className="w-full absolute bottom-0 left-0" />
+            <img
+              src={wave}
+              className="w-full absolute bottom-0 left-0 pointer-events-none select-none"
+              aria-hidden="true"
+            />
             <div className="w-1/2 h-full flex flex-col items-center justify-center">
               <h2 className="text-6xl font-bold mb-10">Try It Out</h2>
               <FaArrowRight className="text-6xl" />
