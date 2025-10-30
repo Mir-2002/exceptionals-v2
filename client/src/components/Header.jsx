@@ -50,12 +50,14 @@ const Header = () => {
   return (
     <header className="flex justify-between items-center px-6 py-4 bg-gray-100 shadow">
       <div className="text-xl font-bold">Exceptionals</div>
-      <button
-        className="ml-auto rounded-md hover:bg-gray-200 focus:bg-gray-300 p-2.5 font-medium"
-        onClick={handleLogin}
-      >
-        Log In
-      </button>
+      {!user && (
+        <button
+          className="ml-auto rounded-md hover:bg-gray-200 focus:bg-gray-300 p-2.5 font-medium"
+          onClick={handleLogin}
+        >
+          Log In
+        </button>
+      )}
       {user && (
         <div className="relative flex items-center gap-x-2" ref={dropdownRef}>
           <button
