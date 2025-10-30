@@ -176,7 +176,7 @@ const Dashboard = () => {
                         <span
                           className={`text-xs px-2 py-1 font-semibold rounded ${
                             (p.status || "").toLowerCase().includes("complete")
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-green-500 text-white"
                               : (p.status || "")
                                   .toLowerCase()
                                   .includes("progress")

@@ -28,13 +28,14 @@ export default function GithubCallback() {
           params: { code },
         });
         const { access_token } = res.data;
+        // Persist token for future sessions
         localStorage.setItem("token", access_token);
         axios.defaults.headers.common[
           "Authorization"
         ] = `Bearer ${access_token}`;
         await getCurrentUser(access_token);
         // Clean query params to avoid reusing code on refresh
-        window.history.replaceState(null, "", "/oauth/github/callback");
+        window.history.replaceState(null, "", "/");
         showSuccess("Signed in with GitHub");
         navigate("/dashboard", { replace: true });
       } catch (e) {

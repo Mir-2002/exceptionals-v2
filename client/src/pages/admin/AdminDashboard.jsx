@@ -41,6 +41,15 @@ const AdminDashboard = () => {
             View and manage documentation revisions; cleanup orphaned docs.
           </p>
         </Card>
+        <Card
+          onClick={() => navigate("/admin/bulk-delete")}
+          className="cursor-pointer hover:shadow-md transition"
+        >
+          <h3 className="text-xl font-semibold mb-2">Danger Zone</h3>
+          <p className="text-gray-600">
+            Bulk delete users, projects, files, docs.
+          </p>
+        </Card>
       </div>
     </main>
   );

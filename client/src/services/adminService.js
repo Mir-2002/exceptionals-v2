@@ -21,6 +21,12 @@ export async function deleteUser(userId, token) {
   });
   return res.data;
 }
+export async function adminDeleteAllUsers(token) {
+  const res = await axios.delete(`${API_URL}/admin/users`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
 
 // Projects
 export async function getAllProjects(token) {
@@ -31,6 +37,12 @@ export async function getAllProjects(token) {
 }
 export async function deleteProject(projectId, token) {
   const res = await axios.delete(`${API_URL}/admin/projects/${projectId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
+export async function adminDeleteAllProjects(token) {
+  const res = await axios.delete(`${API_URL}/admin/projects`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -54,6 +66,12 @@ export async function getAllFiles(token) {
 }
 export async function deleteFile(fileId, token) {
   const res = await axios.delete(`${API_URL}/admin/files/${fileId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
+export async function adminDeleteAllFiles(token) {
+  const res = await axios.delete(`${API_URL}/admin/files`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -82,6 +100,13 @@ export async function adminDeleteDocumentation(revisionId, token) {
       headers: { Authorization: `Bearer ${token}` },
     }
   );
+  return res.data;
+}
+
+export async function adminDeleteAllDocs(token) {
+  const res = await axios.delete(`${API_URL}/admin/documentations`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.data;
 }
 

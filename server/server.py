@@ -18,6 +18,7 @@ from utils.db import get_db, db
 from uuid import uuid4
 import time
 from contextlib import asynccontextmanager
+from fastapi.responses import FileResponse
 
 # Load environment variables
 load_dotenv()
@@ -108,6 +109,22 @@ async def ready(db_conn=Depends(get_db)):
     except Exception as e:
         logger.exception("Readiness check failed: %s", e)
         return {"status": "degraded", "error": str(e)}
+
+@app.get("/public/test-zip", include_in_schema=True)
+async def download_test_zip_root():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(base_dir, "extras", "test-zip.zip")
+    if not os.path.exists(file_path):
+        alt_path = os.path.join(os.path.dirname(base_dir), "server", "extras", "test-zip.zip")
+        if os.path.exists(alt_path):
+            file_path = alt_path
+        else:
+            return {"detail": "test-zip not found"}
+    return FileResponse(path=file_path, filename="test-zip.zip", media_type="application/zip")
+
+@app.get("/api/public/test-zip", include_in_schema=False)
+async def download_test_zip_api_alias():
+    return await download_test_zip_root()
 
 app.include_router(user_router, prefix="/api", tags=["users"])
 app.include_router(project_router, prefix="/api", tags=["projects"])

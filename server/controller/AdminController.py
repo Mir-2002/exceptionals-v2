@@ -48,6 +48,15 @@ async def admin_delete_user(user_id: str, db, current_user):
         raise HTTPException(status_code=404, detail="User not found")
     return {"detail": "User deleted"}
 
+async def admin_delete_all_users(db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    # Keep current admin to avoid locking out all access
+    current_oid = ObjectId(str(current_user.id)) if getattr(current_user, "id", None) else None
+    query = {"_id": {"$ne": current_oid}} if current_oid else {}
+    res = await db.users.delete_many(query)
+    kept = 1 if current_oid else 0
+    return {"detail": f"Deleted {res.deleted_count} users (kept {kept} current admin)"}
+
 # Projects
 async def list_projects(db, current_user):
     await _ensure_admin_or_bootstrap(db, current_user)
@@ -63,7 +72,18 @@ async def admin_delete_project(project_id: str, db, current_user):
     res = await db.projects.delete_one({"_id": oid})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Project not found")
-    return {"detail": "Project and files deleted"}
+    await db.documentations.delete_many({"project_id": project_id})
+    return {"detail": "Project, files and docs deleted"}
+
+async def admin_delete_all_projects(db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    # Delete all files and docs then projects
+    res_files = await db.files.delete_many({})
+    res_docs = await db.documentations.delete_many({})
+    res_proj = await db.projects.delete_many({})
+    return {
+        "detail": f"Deleted {res_proj.deleted_count} projects, {res_files.deleted_count} files, {res_docs.deleted_count} docs",
+    }
 
 # Files
 async def list_files(db, current_user):
@@ -84,6 +104,11 @@ async def cleanup_orphaned_files(db, current_user):
     if orphan_ids:
         await db.files.delete_many({"_id": {"$in": orphan_ids}})
     return {"detail": f"Removed {len(orphan_ids)} orphaned files"}
+
+async def admin_delete_all_files(db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    res = await db.files.delete_many({})
+    return {"detail": f"Deleted {res.deleted_count} files"}
 
 async def cleanup_orphaned_projects(db, current_user):
     await _ensure_admin_or_bootstrap(db, current_user)
@@ -148,3 +173,8 @@ async def admin_delete_documentation(revision_id: str, db, current_user):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Documentation revision not found")
     return {"detail": "Documentation revision deleted"}
+
+async def admin_delete_all_documentations(db, current_user):
+    await _ensure_admin_or_bootstrap(db, current_user)
+    res = await db.documentations.delete_many({})
+    return {"detail": f"Deleted {res.deleted_count} documentation revisions"}

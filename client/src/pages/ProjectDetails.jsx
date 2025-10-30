@@ -30,6 +30,7 @@ const ProjectDetails = () => {
   const { token } = useAuth();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialTried, setInitialTried] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [files, setFiles] = useState([]);
@@ -41,16 +42,53 @@ const ProjectDetails = () => {
   const [showFileBox, setShowFileBox] = useState(false);
   const navigate = useNavigate();
 
-  const fetchProject = async () => {
-    try {
-      const data = await getProjectById(projectId, token);
-      setProject(data);
-    } catch (err) {
-      setProject(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Load project details. If arriving via repo import (?fresh=1), apply a retry and clean up the flag.
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!projectId || !token) return;
+      const url = new URL(window.location.href);
+      const fromRepo = url.searchParams.get("fresh") === "1";
+      setLoading(true);
+      let found = false;
+      try {
+        const data = await getProjectById(projectId, token);
+        if (cancelled) return;
+        setProject(data);
+        found = !!data;
+      } catch {
+        if (cancelled) return;
+        setProject(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+
+      if (fromRepo) {
+        if (!found) {
+          // retry once after short delay for eventual consistency
+          await new Promise((r) => setTimeout(r, 500));
+          try {
+            const data2 = await getProjectById(projectId, token);
+            if (cancelled) return;
+            setProject(data2);
+            found = !!data2;
+          } catch {}
+          if (!found) {
+            // last resort: hard reload once (we already came with ?fresh=1 from LinkRepository)
+            window.location.reload();
+            return;
+          }
+        }
+        // Clean the fresh flag once we have data
+        url.searchParams.delete("fresh");
+        window.history.replaceState(null, "", url.toString());
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, token]);
 
   const fetchFileTree = async () => {
     try {
@@ -82,7 +120,6 @@ const ProjectDetails = () => {
   };
 
   useEffect(() => {
-    fetchProject();
     fetchFileTree();
   }, [projectId, token]);
 
@@ -364,9 +401,9 @@ const ProjectDetails = () => {
     );
   };
 
-  if (loading) return <div className="p-10">Loading project...</div>;
-  if (!project)
-    return <div className="p-10 text-red-500">Project not found.</div>;
+  if (loading && !initialTried)
+    return <div className="p-10">Loading project...</div>;
+  if (!project) return <div className="p-10">Loading project…</div>;
 
   return (
     <div className="flex flex-row gap-8 w-full max-w-none mx-auto mt-10 px-4 overflow-x-hidden justify-center">
