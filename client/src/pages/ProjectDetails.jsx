@@ -12,6 +12,7 @@ import {
 } from "../services/fileService";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import pythonLang from "react-syntax-highlighter/dist/esm/languages/hljs/python";
 import { showSuccess, showError, showWarning } from "../utils/toast";
 import { FaTrashAlt } from "react-icons/fa";
 import {
@@ -24,6 +25,9 @@ import {
 import { listDocumentationRevisions } from "../services/documentationService";
 import { Button } from "../components/ui";
 import { logger } from "../utils/logger";
+
+// Register python for Light build
+SyntaxHighlighter.registerLanguage("python", pythonLang);
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -41,6 +45,16 @@ const ProjectDetails = () => {
   const [viewingFileName, setViewingFileName] = useState("");
   const [showFileBox, setShowFileBox] = useState(false);
   const navigate = useNavigate();
+
+  // Add a helper to refresh the project details on-demand
+  const fetchProject = async () => {
+    try {
+      const data = await getProjectById(projectId, token);
+      setProject(data || null);
+    } catch (e) {
+      // Keep previous state on failure
+    }
+  };
 
   // Load project details. If arriving via repo import (?fresh=1), apply a retry and clean up the flag.
   useEffect(() => {
