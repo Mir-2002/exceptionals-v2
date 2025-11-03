@@ -31,6 +31,7 @@ import LandingPage from "./pages/LandingPage";
 import Guide from "./pages/Guide";
 import MobilePage from "./pages/MobilePage";
 import AdminBulkDelete from "./pages/admin/AdminBulkDelete";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   const [isMobile, setIsMobile] = useState(false);
@@ -56,10 +57,9 @@ function App() {
             {/* Public routes without header */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-
             <Route path="/oauth/github/callback" element={<GithubCallback />} />
 
-            {/* Landing page with fullBleed layout */}
+            {/* Landing page with fullBleed layout (public) */}
             <Route element={<Layout fullBleed={true} />}>
               <Route path="/" element={<LandingPage />} />
               <Route path="/guide" element={<Guide />} />
@@ -67,53 +67,61 @@ function App() {
 
             {/* Protected routes with header and layout */}
             <Route element={<Layout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/files" element={<AdminFiles />} />
-              <Route path="/admin/projects" element={<AdminProjects />} />
-              <Route path="/admin/documentations" element={<AdminDocs />} />
-              <Route path="/admin/bulk-delete" element={<AdminBulkDelete />} />
-              <Route
-                path="/admin/documentations/:revisionId"
-                element={<AdminDocDetails />}
-              />
-              <Route path="/projects/create" element={<CreateProject />} />
-              <Route path="/settings" element={<UserSettings />} />
-              <Route path="/projects/:projectId" element={<ProjectDetails />} />
-              <Route
-                path="/projects/:projectId/edit"
-                element={<EditProjectDetails />}
-              />
-              <Route
-                path="/projects/:projectId/preferences"
-                element={<SetPreferences />}
-              />
-              <Route
-                path="/projects/:projectId/preferences/files"
-                element={<SetFilePreferences />}
-              />
-              <Route
-                path="/projects/:projectId/preferences/functions-classes"
-                element={<SetFunctionClassPreference />}
-              />
-              <Route
-                path="/projects/:projectId/preferences/finalize"
-                element={<FinalizePreference />}
-              />
-              <Route
-                path="/projects/:projectId/documentation/generate"
-                element={<GenerateDocumentation />}
-              />
-              <Route
-                path="/projects/:projectId/documentation/:revisionId"
-                element={<DocumentationDetails />}
-              />
-              <Route
-                path="/projects/:projectId/documentation/browser"
-                element={<DocumentationBrowser />}
-              />
-              <Route path="/link-repo" element={<LinkRepository />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/files" element={<AdminFiles />} />
+                <Route path="/admin/projects" element={<AdminProjects />} />
+                <Route path="/admin/documentations" element={<AdminDocs />} />
+                <Route
+                  path="/admin/bulk-delete"
+                  element={<AdminBulkDelete />}
+                />
+                <Route
+                  path="/admin/documentations/:revisionId"
+                  element={<AdminDocDetails />}
+                />
+                <Route path="/projects/create" element={<CreateProject />} />
+                <Route path="/settings" element={<UserSettings />} />
+                <Route
+                  path="/projects/:projectId"
+                  element={<ProjectDetails />}
+                />
+                <Route
+                  path="/projects/:projectId/edit"
+                  element={<EditProjectDetails />}
+                />
+                <Route
+                  path="/projects/:projectId/preferences"
+                  element={<SetPreferences />}
+                />
+                <Route
+                  path="/projects/:projectId/preferences/files"
+                  element={<SetFilePreferences />}
+                />
+                <Route
+                  path="/projects/:projectId/preferences/functions-classes"
+                  element={<SetFunctionClassPreference />}
+                />
+                <Route
+                  path="/projects/:projectId/preferences/finalize"
+                  element={<FinalizePreference />}
+                />
+                <Route
+                  path="/projects/:projectId/documentation/generate"
+                  element={<GenerateDocumentation />}
+                />
+                <Route
+                  path="/projects/:projectId/documentation/:revisionId"
+                  element={<DocumentationDetails />}
+                />
+                <Route
+                  path="/projects/:projectId/documentation/browser"
+                  element={<DocumentationBrowser />}
+                />
+                <Route path="/link-repo" element={<LinkRepository />} />
+              </Route>
               <Route path="/error" element={<ErrorPage />} />
               <Route path="*" element={<ErrorPage />} />
             </Route>

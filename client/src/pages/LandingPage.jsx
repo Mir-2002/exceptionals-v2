@@ -12,6 +12,7 @@ import { FaArrowRight } from "react-icons/fa";
 import Editor from "@monaco-editor/react";
 import { useNavigate } from "react-router-dom";
 import { generateDemoDocstring } from "../services/documentationService";
+import { useAuth } from "../context/authContext";
 
 const FeatureCard = ({ icon, title, children, borderRight = false }) => (
   <div
@@ -38,6 +39,7 @@ const LandingPage = () => {
   const [generating, setGenerating] = useState(false);
   const [demoResult, setDemoResult] = useState(null);
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const handleDemoGenerate = async () => {
     if (!code.trim()) return;
@@ -51,6 +53,11 @@ const LandingPage = () => {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleGetStarted = () => {
+    if (isAuthenticated) navigate("/dashboard");
+    else navigate("/login");
   };
 
   return (
@@ -84,7 +91,7 @@ const LandingPage = () => {
                 <Button
                   variant="primary"
                   size="lg"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={handleGetStarted}
                   className="mt-8"
                 >
                   Get Started
