@@ -34,6 +34,10 @@ export default function GithubCallback() {
           "Authorization"
         ] = `Bearer ${access_token}`;
         await getCurrentUser(access_token);
+        // Trigger HF warmup in background
+        try {
+          await axios.post(`${API_URL}/documentation/warmup`, {});
+        } catch {}
         // Clean query params to avoid reusing code on refresh
         window.history.replaceState(null, "", "/");
         showSuccess("Signed in with GitHub");

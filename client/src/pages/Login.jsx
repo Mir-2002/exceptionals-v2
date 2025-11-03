@@ -47,7 +47,7 @@ const Login = () => {
               label: "Username",
               type: "text",
               required: true,
-              placeholder: "Enter your email or username",
+              placeholder: "Enter your username",
             },
             {
               name: "password",

@@ -7,6 +7,8 @@ import {
 import axios from "axios";
 import { logger } from "../utils/logger";
 
+const API_URL = import.meta.env?.VITE_API_URL;
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -31,6 +33,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
+  const warmupModel = async () => {
+    if (!API_URL) return;
+    try {
+      // Fire-and-forget warmup; ignore failures
+      await axios.post(`${API_URL}/documentation/warmup`, {});
+      logger.info("Model warmup scheduled");
+    } catch (e) {
+      logger.warn(
+        "Warmup failed (likely model boot/capacity):",
+        e?.response?.status || e?.message
+      );
+    }
+  };
+
   // Login function
   const login = async (username, password) => {
     try {
@@ -38,6 +54,8 @@ export const AuthProvider = ({ children }) => {
       setToken(data.access_token);
       localStorage.setItem("token", data.access_token);
       await getCurrentUser(data.access_token);
+      // Kick warmup after successful login
+      warmupModel();
       return data;
     } catch (error) {
       throw error;
@@ -80,6 +98,8 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           await getCurrentUser();
+          // Also warmup when user is already authenticated on refresh
+          warmupModel();
         } catch (error) {
           logger.warn("Auth check failed:", error);
         }

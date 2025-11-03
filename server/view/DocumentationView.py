@@ -160,6 +160,35 @@ async def download_revision(project_id: str, revision_id: str, db=Depends(get_db
         html = render_html(project_id, doc.get("results") or [], project_name=title_override, project_description=desc_override, revision_id=revision_id)
         return Response(content=html or "", media_type="text/html", headers={"Content-Disposition": f"attachment; filename={filename}"})
 
+# ---------- Model warmup endpoint (non-blocking) ----------
+@router.post("/warmup")
+async def warmup_model():
+    """Kick off a background request to HF endpoint to pre-boot the model.
+    Returns immediately; ignores errors (boot unavailability, capacity, etc.).
+    """
+    async def _do_warmup():
+        prompts = [
+            "Warmup ping: generate a short placeholder docstring.",
+        ]
+        params = {
+            "max_length": 32,
+            "do_sample": False,
+            "temperature": 0.1,
+            "clean_up_tokenization_spaces": True,
+        }
+        try:
+            await hf_generate_batch_async(prompts, parameters=params)
+        except Exception:
+            # Ignore all errors; the purpose is to trigger boot if possible
+            logger.info("Warmup attempted (may have failed due to capacity/boot)")
+
+    try:
+        asyncio.create_task(_do_warmup())
+    except Exception:
+        # Fallback: just ignore if scheduling fails
+        pass
+    return {"status": "scheduled"}
+
 # ---------- Public demo endpoint for single/multi-snippet generation ----------
 @router.post("/demo/generate")
 async def generate_demo_docstring(payload: dict = Body(default={})):
