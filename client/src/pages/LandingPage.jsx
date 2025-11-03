@@ -84,7 +84,7 @@ const LandingPage = () => {
                 <Button
                   variant="primary"
                   size="lg"
-                  onClick={() => navigate("/register")}
+                  onClick={() => navigate("/dashboard")}
                   className="mt-8"
                 >
                   Get Started
