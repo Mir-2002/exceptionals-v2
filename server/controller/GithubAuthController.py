@@ -13,7 +13,8 @@ GITHUB_API = "https://api.github.com"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 
 async def _exchange_code_for_token(code: str) -> str:
-    if not GITHUB_OAUTH_CLIENT_ID or not GITHUB_OAUTH_CLIENT_SECRET or not GITHUB_OAUTH_REDIRECT_URI:
+    # Only client_id and client_secret are strictly required here.
+    if not GITHUB_OAUTH_CLIENT_ID or not GITHUB_OAUTH_CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="GitHub OAuth not configured")
     headers = {
         "Accept": "application/json",
@@ -23,8 +24,10 @@ async def _exchange_code_for_token(code: str) -> str:
         "client_id": GITHUB_OAUTH_CLIENT_ID,
         "client_secret": GITHUB_OAUTH_CLIENT_SECRET,
         "code": code,
-        "redirect_uri": GITHUB_OAUTH_REDIRECT_URI,
     }
+    # Include redirect_uri only if explicitly configured and also used during authorization
+    if GITHUB_OAUTH_REDIRECT_URI:
+        payload["redirect_uri"] = GITHUB_OAUTH_REDIRECT_URI
     async with httpx.AsyncClient(timeout=30) as client:
         # IMPORTANT: send as form data, not JSON
         resp = await client.post(GITHUB_TOKEN_URL, headers=headers, data=payload)

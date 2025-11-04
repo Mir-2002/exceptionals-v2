@@ -15,15 +15,25 @@ router = APIRouter(prefix="/auth/github", tags=["auth"])
 def github_login():
     client_id = os.getenv("GITHUB_OAUTH_CLIENT_ID")
     redirect_uri = os.getenv("GITHUB_OAUTH_REDIRECT_URI")
-    if not client_id or not redirect_uri:
+    if not client_id:
         raise HTTPException(status_code=500, detail="GitHub OAuth not configured")
     # Request private repo access via 'repo' scope
     scope_raw = "read:user user:email repo"
     scope = quote(scope_raw, safe="")
-    url = (
-        "https://github.com/login/oauth/authorize"
-        f"?client_id={client_id}&redirect_uri={quote(redirect_uri, safe='')}&scope={scope}&allow_signup=true"
-    )
+    # Build authorize URL; include redirect_uri only when explicitly configured
+    base = "https://github.com/login/oauth/authorize"
+    if redirect_uri:
+        url = (
+            f"{base}?client_id={client_id}"
+            f"&redirect_uri={quote(redirect_uri, safe='')}"
+            f"&scope={scope}&allow_signup=true"
+        )
+    else:
+        # Use the OAuth App's configured callback URL
+        url = (
+            f"{base}?client_id={client_id}"
+            f"&scope={scope}&allow_signup=true"
+        )
     return RedirectResponse(url)
 
 @router.get("/callback", response_model=Token, summary="GitHub OAuth callback")
