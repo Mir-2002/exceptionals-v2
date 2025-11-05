@@ -8,7 +8,6 @@ from model.UserModel import UserInDB
 from controller.AuthController import get_current_user
 import os
 from urllib.parse import quote
-import logging
 
 router = APIRouter(prefix="/auth/github", tags=["auth"]) 
 
@@ -17,10 +16,11 @@ def github_login():
     client_id = os.getenv("GITHUB_OAUTH_CLIENT_ID")
     if not client_id:
         raise HTTPException(status_code=500, detail="GitHub OAuth not configured")
-    # Request private repo access via 'repo' scope
+    
     scope_raw = "read:user user:email repo"
     scope = quote(scope_raw, safe="")
-    # Always rely on the OAuth App's configured callback URL
+    
+    # Let GitHub use the OAuth App's configured callback URL - NO redirect_uri parameter
     base = "https://github.com/login/oauth/authorize"
     url = f"{base}?client_id={client_id}&scope={scope}&allow_signup=true"
     return RedirectResponse(url)
