@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from utils.db import get_db
 from controller.GithubAuthController import handle_github_callback, list_github_repos
@@ -15,29 +15,14 @@ router = APIRouter(prefix="/auth/github", tags=["auth"])
 @router.get("/login", summary="Start GitHub OAuth login")
 def github_login():
     client_id = os.getenv("GITHUB_OAUTH_CLIENT_ID")
-    redirect_uri = os.getenv("GITHUB_OAUTH_REDIRECT_URI")
-    include_redirect = (os.getenv("GITHUB_OAUTH_INCLUDE_REDIRECT_URI") or "").lower() in {"1","true","yes"}
     if not client_id:
         raise HTTPException(status_code=500, detail="GitHub OAuth not configured")
     # Request private repo access via 'repo' scope
     scope_raw = "read:user user:email repo"
     scope = quote(scope_raw, safe="")
-    # Build authorize URL; include redirect_uri only when explicitly configured and enabled
+    # Always rely on the OAuth App's configured callback URL
     base = "https://github.com/login/oauth/authorize"
-    if redirect_uri and include_redirect:
-        url = (
-            f"{base}?client_id={client_id}"
-            f"&redirect_uri={quote(redirect_uri, safe='')}"
-            f"&scope={scope}&allow_signup=true"
-        )
-        logging.getLogger("auth.github").info("GitHub OAuth authorize with redirect_uri=%s", redirect_uri)
-    else:
-        # Use the OAuth App's configured callback URL
-        url = (
-            f"{base}?client_id={client_id}"
-            f"&scope={scope}&allow_signup=true"
-        )
-        logging.getLogger("auth.github").info("GitHub OAuth authorize without redirect_uri (using OAuth App callback)")
+    url = f"{base}?client_id={client_id}&scope={scope}&allow_signup=true"
     return RedirectResponse(url)
 
 @router.get("/callback", response_model=Token, summary="GitHub OAuth callback")
