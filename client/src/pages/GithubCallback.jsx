@@ -40,8 +40,23 @@ export default function GithubCallback() {
         } catch {}
         // Clean query params to avoid reusing code on refresh
         window.history.replaceState(null, "", "/");
-        showSuccess("Signed in with GitHub");
-        navigate("/dashboard", { replace: true });
+
+        // Check if GitHub App is already installed for this user
+        try {
+          const check = await axios.get(`${API_URL}/auth/github/installed`, {
+            headers: { Authorization: `Bearer ${access_token}` },
+          });
+          if (check?.data?.installed) {
+            showSuccess("Signed in with GitHub");
+            navigate("/dashboard", { replace: true });
+            return;
+          }
+        } catch {}
+
+        // If not installed, take the user to install/configure the GitHub App, then return to dashboard
+        const next = encodeURIComponent("/dashboard");
+        window.location.href = `${API_URL}/auth/github/install?next=${next}`;
+        return;
       } catch (e) {
         const msg = e?.response?.data?.detail || "GitHub login failed";
         showError(msg);

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { getUserProjects } from "../services/projectService";
 import { Button, Card, LoadingSpinner } from "../components/ui";
 import StatsCard from "../components/ui/StatsCard";
+import { showSuccess } from "../utils/toast";
 
 const Dashboard = () => {
   const { user, token } = useAuth();
@@ -12,9 +13,45 @@ const Dashboard = () => {
   const [sort, setSort] = useState("updated");
   const navigate = useNavigate();
 
+  // Clean GitHub install query params and notify
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const installationId = params.get("installation_id");
+    if (installationId) {
+      const action = params.get("setup_action") || "install";
+      const state = params.get("state");
+      if (action === "install") {
+        showSuccess("GitHub App installed. You can now link a repository.");
+      }
+      // If a safe state was provided (e.g., "/dashboard" or "/link-repo"), navigate there
+      if (state) {
+        try {
+          const target = decodeURIComponent(state);
+          // basic safety to avoid open redirects
+          if (
+            typeof target === "string" &&
+            target.startsWith("/") &&
+            !target.startsWith("//")
+          ) {
+            navigate(target, { replace: true });
+            return;
+          }
+        } catch {}
+      }
+      // Default cleanup to dashboard
+      window.history.replaceState(null, "", "/dashboard");
+    }
+  }, [navigate]);
+
   useEffect(() => {
     const fetchProjects = async () => {
-      if (!user) return;
+      if (!user || !token) {
+        // Wait until both user and token are ready
+        setProjects([]);
+        setLoading(true);
+        return;
+      }
+      setLoading(true);
       try {
         const data = await getUserProjects(user.id, token);
         setProjects(Array.isArray(data) ? data : []);

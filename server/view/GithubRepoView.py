@@ -8,15 +8,19 @@ router = APIRouter(prefix="/github", tags=["github"])
 
 GITHUB_API = "https://api.github.com"
 
-async def _get_token(user):
-    if user.auth_provider != "github" or not user.github_token_enc:
-        raise HTTPException(status_code=400, detail="User not connected to GitHub")
-    from utils.crypto import decrypt_text
-    return decrypt_text(user.github_token_enc)
+async def _get_installation_token_for_repo(owner: str, repo: str) -> str:
+    from utils.github_app import get_installation_token_for_repo
+    try:
+        return await get_installation_token_for_repo(owner, repo)
+    except Exception:
+        raise HTTPException(
+            status_code=403,
+            detail="GitHub App is not installed on this repository or lacks Contents: Read access. Please install the app and grant access to this repository.",
+        )
 
 @router.get("/repos/{owner}/{repo}/branches", summary="List branches for a repo")
 async def list_branches(owner: str, repo: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    token = await _get_token(current_user)
+    token = await _get_installation_token_for_repo(owner, repo)
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
@@ -24,7 +28,11 @@ async def list_branches(owner: str, repo: str, current_user=Depends(get_current_
     }
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(f"{GITHUB_API}/repos/{owner}/{repo}/branches?per_page=100", headers=headers)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Failed to fetch branches")
-        data = resp.json()
-        return [{"name": b.get("name"), "commit": b.get("commit", {}).get("sha")} for b in data]
+        if resp.status_code == 200:
+            data = resp.json()
+            return [{"name": b.get("name"), "commit": b.get("commit", {}).get("sha")} for b in data]
+        if resp.status_code == 404:
+            raise HTTPException(404, "Repository not found or not accessible with the app permissions")
+        if resp.status_code == 403:
+            raise HTTPException(403, "Insufficient permissions. Ensure the app has Contents: Read and access to this repository.")
+        raise HTTPException(resp.status_code, "Failed to fetch branches")

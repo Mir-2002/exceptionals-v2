@@ -101,6 +101,12 @@ const currentUser = await getCurrentUser("your-jwt-token");
 - **Protected**
 - Returns the authenticated user's repositories from GitHub (subset fields).
 
+### 6. GitHub App Flow
+
+- **GET** `/api/auth/github/login` → Redirects to GitHub to authorize the GitHub App. No OAuth scopes are sent.
+- **GET** `/api/auth/github/callback?code=...` → Exchanges the code for a user access token, links/creates the local user, and returns a JWT for this API.
+- **GET** `/api/auth/github/repos` → Lists repositories accessible via the GitHub App across the user's installations.
+
 ## Authentication Flow
 
 ### Basic Login Flow
@@ -193,3 +199,27 @@ function logout() {
 - GitHub token is encrypted at rest using `GITHUB_TOKEN_SECRET` (falls back to `SECRET_KEY` in dev).
 - User model now supports `auth_provider` (`local` or `github`) and `provider_id`.
 - Local registration still works; OAuth users have no local password.
+
+## GitHub Authentication
+
+This service uses the GitHub App OAuth web flow (user-to-server) to connect users' GitHub accounts. The app's permissions are defined in the GitHub App configuration. Users must install the GitHub App to repositories they want the app to access.
+
+### Endpoints
+
+- **GET** `/api/auth/github/login` → Redirects to GitHub to authorize the GitHub App. No OAuth scopes are sent.
+- **GET** `/api/auth/github/callback?code=...` → Exchanges the code for a user access token, links/creates the local user, and returns a JWT for this API.
+- **GET** `/api/auth/github/repos` → Lists repositories accessible via the GitHub App across the user's installations.
+
+### Environment variables
+
+- `GITHUB_OAUTH_CLIENT_ID` → GitHub App's Client ID
+- `GITHUB_OAUTH_CLIENT_SECRET` → GitHub App's Client Secret
+- `GITHUB_OAUTH_REDIRECT_URI` → The callback URL registered in the GitHub App (e.g., `https://exceptionals.up.railway.app/oauth/github/callback`)
+- `GITHUB_APP_ID` → Numeric App ID
+- `GITHUB_APP_PRIVATE_KEY` → The GitHub App private key (PEM, `\n` newlines allowed)
+
+### Notes
+
+- Ensure the GitHub App is public and installable by any account if your site serves the public. Otherwise, non-members will see a 404 at the GitHub authorize URL.
+- Frontend should redirect to `/api/auth/github/login` rather than building the GitHub URL client-side.
+- When importing or listing repos, this API prefers GitHub App installation access tokens for correct repository permissions.

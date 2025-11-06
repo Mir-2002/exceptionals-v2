@@ -24,6 +24,7 @@ export default function LinkRepository() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [customTag, setCustomTag] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [needsInstall, setNeedsInstall] = useState(false);
 
   const githubConnected = user?.auth_provider === "github";
 
@@ -31,7 +32,9 @@ export default function LinkRepository() {
     const fetch = async () => {
       try {
         const data = await getRepos(token);
-        setRepos(data || []);
+        setRepos(
+          Array.isArray(data) ? data.filter((r) => r?.app_installed) : []
+        );
       } catch (e) {
         showError("Failed to load repositories");
       } finally {
@@ -47,9 +50,18 @@ export default function LinkRepository() {
       if (!selectedRepo) {
         setBranches([]);
         setBranch("");
+        setNeedsInstall(false);
         return;
       }
       try {
+        const repoMeta = repos.find((r) => r.full_name === selectedRepo);
+        if (repoMeta && repoMeta.app_installed === false) {
+          setNeedsInstall(true);
+          setBranches([]);
+          setBranch("");
+          return;
+        }
+        setNeedsInstall(false);
         const [owner, repo] = selectedRepo.split("/");
         const data = await getBranches(owner, repo, token);
         setBranches(data || []);
@@ -57,11 +69,14 @@ export default function LinkRepository() {
       } catch (e) {
         setBranches([]);
         setBranch("");
-        showError("Failed to load branches");
+        setNeedsInstall(true);
+        showError(
+          "This repo is not accessible. Install the GitHub App on this repository."
+        );
       }
     };
     loadBranches();
-  }, [selectedRepo, token]);
+  }, [selectedRepo, token, repos]);
 
   const handleTagToggle = (tag) => {
     setSelectedTags((prev) =>
@@ -144,6 +159,11 @@ export default function LinkRepository() {
             <FiFolderPlus className="text-blue-600 text-xl" />
             <Card.Title>Link a GitHub Repository</Card.Title>
           </div>
+          <p className="text-sm text-gray-500 mt-2">
+            If prompted to install the GitHub App, choose “All repositories” for
+            the smoothest experience, or “Only select repositories” and pick the
+            ones you want to use.
+          </p>
         </Card.Header>
         <Card.Content>
           {loading ? (
@@ -192,6 +212,34 @@ export default function LinkRepository() {
                     </option>
                   ))}
                 </select>
+                {needsInstall && (
+                  <div className="mt-2 text-sm text-amber-700">
+                    This repository is not accessible by the app. Install or
+                    grant access, then retry.
+                    <div className="mt-2 flex gap-2 items-center">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          const next = encodeURIComponent(
+                            window.location.pathname
+                          );
+                          window.location.href = `${API_URL}/auth/github/install?next=${next}`;
+                        }}
+                      >
+                        Install GitHub App
+                      </Button>
+                      <a
+                        href="https://github.com/settings/installations"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline text-amber-800"
+                      >
+                        Manage installations
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Branch</label>

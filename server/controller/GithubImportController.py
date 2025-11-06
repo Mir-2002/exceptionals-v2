@@ -43,14 +43,19 @@ async def import_github_repo(req: GithubImportRequest, db, current_user):
     )
     project_id = project.id
 
-    # 2) Resolve default branch if ref not provided
-    token = await _get_user_token(current_user)
+    # 2) Resolve default branch if ref not provided, using installation token for the repo
     owner, repo = req.repo_full_name.split("/", 1)
+    from utils.github_app import get_installation_token_for_repo
+    try:
+        inst_token = await get_installation_token_for_repo(owner, repo)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="GitHub App is not installed on this repository or access was denied.")
+
     ref = req.ref
     if not ref:
         headers = {
             "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {inst_token}",
             "X-GitHub-Api-Version": "2022-11-28",
         }
         async with httpx.AsyncClient(timeout=30) as client:
@@ -59,11 +64,11 @@ async def import_github_repo(req: GithubImportRequest, db, current_user):
                 raise HTTPException(status_code=repo_resp.status_code, detail="Failed to fetch repository info")
             ref = repo_resp.json().get("default_branch") or "main"
 
-    # 3) Download zip to temp path
+    # 3) Download zip to temp path using installation token
     tmp_dir = tempfile.mkdtemp(prefix="gh-import-")
     zip_path = os.path.join(tmp_dir, f"{repo}-{ref}.zip")
     try:
-        await _download_repo_zip(owner, repo, ref, token, zip_path)
+        await _download_repo_zip(owner, repo, ref, inst_token, zip_path)
         # 4) Upload zip to existing flow
         from fastapi import UploadFile
         from controller.FileController import upload_project_zip

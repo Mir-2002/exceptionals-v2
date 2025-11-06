@@ -107,18 +107,47 @@ async def handle_github_callback(code: str, db):
     return user
 
 async def list_github_repos(user, db):
+    # Return all repos for the user, annotated with whether the app is installed on each repo
     if user.auth_provider != "github" or not user.github_token_enc:
         raise HTTPException(status_code=400, detail="User is not connected with GitHub")
     from utils.crypto import decrypt_text
     access_token = decrypt_text(user.github_token_enc)
+
+    # 1) Repos accessible via the GitHub App installations
+    accessible_ids: set[int] = set()
+    installation_repos: list[dict] = []
+    try:
+        from utils.github_app import list_all_repos_for_user_installations
+        installation_repos = await list_all_repos_for_user_installations(access_token)
+        for r in installation_repos:
+            rid = r.get("id")
+            if isinstance(rid, int):
+                accessible_ids.add(rid)
+    except Exception:
+        # If app config is missing or request fails, continue without installation repos
+        pass
+
+    # 2) All user repos (for listing)
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {access_token}",
         "X-GitHub-Api-Version": "2022-11-28",
     }
+    all_user_repos: list[dict] = []
     async with httpx.AsyncClient(timeout=30) as client:
         url = f"{GITHUB_API}/user/repos?per_page=100&sort=updated&visibility=all&affiliation=owner,collaborator,organization_member"
         resp = await client.get(url, headers=headers)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Failed to fetch repositories")
-        return resp.json()
+        if resp.status_code == 200:
+            all_user_repos = resp.json() or []
+        else:
+            # If we cannot list user repos, at least return installation repos (marked accessible)
+            return [dict(r, app_installed=True) for r in (installation_repos or [])]
+
+    # 3) Annotate each user repo with app_installed flag
+    annotated: list[dict] = []
+    for repo in all_user_repos:
+        rid = repo.get("id")
+        repo["app_installed"] = bool(rid in accessible_ids)
+        annotated.append(repo)
+
+    return annotated

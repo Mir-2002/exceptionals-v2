@@ -75,7 +75,12 @@ export const AuthProvider = ({ children }) => {
   // Get current user
   const getCurrentUser = async (authToken = token) => {
     try {
-      const data = await getCurrentUserService(authToken);
+      // If an explicit token is provided (e.g., GitHub OAuth), persist and set it
+      if (authToken && authToken !== token) {
+        setToken(authToken);
+        localStorage.setItem("token", authToken);
+      }
+      const data = await getCurrentUserService(authToken || token);
       setUser(data);
       return data;
     } catch (error) {

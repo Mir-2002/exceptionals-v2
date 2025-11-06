@@ -6,6 +6,7 @@ export async function getRepos(token) {
   const res = await axios.get(`${API_URL}/auth/github/repos`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
+  // Repos may include `app_installed: boolean`.
   return res.data;
 }
 
