@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useEffect, useState } from "react";
 import Login from "./pages/Login";
@@ -33,121 +33,121 @@ import MobilePage from "./pages/MobilePage";
 import AdminBulkDelete from "./pages/admin/AdminBulkDelete";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-function App() {
+function AppInner() {
   const [isMobile, setIsMobile] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  if (isMobile) {
+  // Public pages allowed on mobile
+  const PUBLIC_MOBILE_PATHS = new Set([
+    "/",
+    "/login",
+    "/register",
+    "/guide",
+    "/oauth/github/callback",
+  ]);
+  const allowOnMobile = PUBLIC_MOBILE_PATHS.has(location.pathname);
+
+  if (isMobile && !allowOnMobile) {
     return <MobilePage />;
   }
 
   return (
+    <Routes>
+      {/* Public routes without header */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/oauth/github/callback" element={<GithubCallback />} />
+
+      {/* Landing page with fullBleed layout (public) */}
+      <Route element={<Layout fullBleed={true} />}>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/guide" element={<Guide />} />
+      </Route>
+
+      {/* Protected routes with header and layout */}
+      <Route element={<Layout />}>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/files" element={<AdminFiles />} />
+          <Route path="/admin/projects" element={<AdminProjects />} />
+          <Route path="/admin/documentations" element={<AdminDocs />} />
+          <Route path="/admin/bulk-delete" element={<AdminBulkDelete />} />
+          <Route
+            path="/admin/documentations/:revisionId"
+            element={<AdminDocDetails />}
+          />
+          <Route path="/projects/create" element={<CreateProject />} />
+          <Route path="/settings" element={<UserSettings />} />
+          <Route path="/projects/:projectId" element={<ProjectDetails />} />
+          <Route
+            path="/projects/:projectId/edit"
+            element={<EditProjectDetails />}
+          />
+          <Route
+            path="/projects/:projectId/preferences"
+            element={<SetPreferences />}
+          />
+          <Route
+            path="/projects/:projectId/preferences/files"
+            element={<SetFilePreferences />}
+          />
+          <Route
+            path="/projects/:projectId/preferences/functions-classes"
+            element={<SetFunctionClassPreference />}
+          />
+          <Route
+            path="/projects/:projectId/preferences/finalize"
+            element={<FinalizePreference />}
+          />
+          <Route
+            path="/projects/:projectId/documentation/generate"
+            element={<GenerateDocumentation />}
+          />
+          <Route
+            path="/projects/:projectId/documentation/:revisionId"
+            element={<DocumentationDetails />}
+          />
+          <Route
+            path="/projects/:projectId/documentation/browser"
+            element={<DocumentationBrowser />}
+          />
+          <Route path="/link-repo" element={<LinkRepository />} />
+        </Route>
+        <Route path="/error" element={<ErrorPage />} />
+        <Route path="*" element={<ErrorPage />} />
+      </Route>
+    </Routes>
+  );
+}
+
+function App() {
+  return (
     <BrowserRouter>
       <AuthProvider>
         <PreferenceProvider>
-          <Routes>
-            {/* Public routes without header */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/oauth/github/callback" element={<GithubCallback />} />
-
-            {/* Landing page with fullBleed layout (public) */}
-            <Route element={<Layout fullBleed={true} />}>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/guide" element={<Guide />} />
-            </Route>
-
-            {/* Protected routes with header and layout */}
-            <Route element={<Layout />}>
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/users" element={<AdminUsers />} />
-                <Route path="/admin/files" element={<AdminFiles />} />
-                <Route path="/admin/projects" element={<AdminProjects />} />
-                <Route path="/admin/documentations" element={<AdminDocs />} />
-                <Route
-                  path="/admin/bulk-delete"
-                  element={<AdminBulkDelete />}
-                />
-                <Route
-                  path="/admin/documentations/:revisionId"
-                  element={<AdminDocDetails />}
-                />
-                <Route path="/projects/create" element={<CreateProject />} />
-                <Route path="/settings" element={<UserSettings />} />
-                <Route
-                  path="/projects/:projectId"
-                  element={<ProjectDetails />}
-                />
-                <Route
-                  path="/projects/:projectId/edit"
-                  element={<EditProjectDetails />}
-                />
-                <Route
-                  path="/projects/:projectId/preferences"
-                  element={<SetPreferences />}
-                />
-                <Route
-                  path="/projects/:projectId/preferences/files"
-                  element={<SetFilePreferences />}
-                />
-                <Route
-                  path="/projects/:projectId/preferences/functions-classes"
-                  element={<SetFunctionClassPreference />}
-                />
-                <Route
-                  path="/projects/:projectId/preferences/finalize"
-                  element={<FinalizePreference />}
-                />
-                <Route
-                  path="/projects/:projectId/documentation/generate"
-                  element={<GenerateDocumentation />}
-                />
-                <Route
-                  path="/projects/:projectId/documentation/:revisionId"
-                  element={<DocumentationDetails />}
-                />
-                <Route
-                  path="/projects/:projectId/documentation/browser"
-                  element={<DocumentationBrowser />}
-                />
-                <Route path="/link-repo" element={<LinkRepository />} />
-              </Route>
-              <Route path="/error" element={<ErrorPage />} />
-              <Route path="*" element={<ErrorPage />} />
-            </Route>
-          </Routes>
+          <AppInner />
           {/* Toast notifications */}
           <Toaster
             position="top-right"
             toastOptions={{
               duration: 4000,
-              style: {
-                background: "#363636",
-                color: "#fff",
-              },
+              style: { background: "#363636", color: "#fff" },
               success: {
                 duration: 3000,
-                iconTheme: {
-                  primary: "#10b981",
-                  secondary: "#fff",
-                },
+                iconTheme: { primary: "#10b981", secondary: "#fff" },
               },
               error: {
                 duration: 5000,
-                iconTheme: {
-                  primary: "#ef4444",
-                  secondary: "#fff",
-                },
+                iconTheme: { primary: "#ef4444", secondary: "#fff" },
               },
             }}
           />

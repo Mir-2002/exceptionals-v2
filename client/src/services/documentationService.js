@@ -119,7 +119,7 @@ export async function updateDocumentationRevision(
 
 // New: single-snippet demo generation (no auth required) with retry on 5xx
 export async function generateDemoDocstring(code, opts = {}) {
-  const { maxWaitMs = 90000 } = opts;
+  const { maxWaitMs = 180000 } = opts;
   const start = Date.now();
   let attempt = 0;
   let delayMs = 1500;

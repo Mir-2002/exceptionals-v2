@@ -11,7 +11,7 @@ const Button = ({
   ...props
 }) => {
   const baseClasses =
-    "rounded font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2";
+    "inline-flex w-auto items-center justify-center rounded font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2";
 
   const variants = {
     primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",

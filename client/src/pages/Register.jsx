@@ -33,11 +33,11 @@ const Register = () => {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white shadow rounded-lg p-6">
+    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 max-md:px-3">
+      <div className="w-full max-w-md bg-white shadow rounded-lg p-6 max-md:p-5">
         <div className="flex items-center gap-2 mb-4">
           <FiUserPlus className="text-blue-600 text-xl" />
-          <h1 className="text-2xl font-bold">Register</h1>
+          <h1 className="text-2xl font-bold max-md:text-xl">Register</h1>
         </div>
         <Form
           fields={[
@@ -80,10 +80,15 @@ const Register = () => {
           buttonText="Register"
         />
         {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
-        <p className="mt-4 text-sm text-gray-600">
+        <p className="mt-4 text-sm text-gray-600 text-center">
           Already have an account?{" "}
           <a href="/login" className="text-blue-600 hover:underline">
             Login here
+          </a>
+        </p>
+        <p className="mt-2 text-xs text-center text-gray-500">
+          <a href="/" className="hover:underline">
+            Back to Home
           </a>
         </p>
       </div>

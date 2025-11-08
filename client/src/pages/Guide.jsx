@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { FaArrowUp } from "react-icons/fa";
 
 const NoteBox = ({
   type = "note", // "note" | "tip" | "warning"
@@ -65,29 +66,58 @@ const NoteBox = ({
 };
 
 const Guide = () => {
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const mainSection = document.querySelector(".guide-content");
+      const scrollTop = mainSection ? mainSection.scrollTop : window.scrollY;
+      if (scrollTop > 300) setShowScrollButton(true);
+      else setShowScrollButton(false);
+    };
+
+    const mainSection = document.querySelector(".guide-content");
+    if (mainSection) mainSection.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      if (mainSection) mainSection.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const scrollToTop = () => {
+    const mainSection = document.querySelector(".guide-content");
+    if (mainSection) {
+      mainSection.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   return (
     <>
-      <main className="w-full min-h-screen flex flex-row">
-        <section className="w-1/6 flex flex-col border-r border-gray-300">
-          <nav className="p-10">
-            <ul className="space-y-2">
+      <main className="w-full min-h-screen flex flex-row max-md:flex-col">
+        <section className="w-1/6 flex flex-col border-r border-gray-300 max-md:w-full max-md:border-r-0 max-md:border-b">
+          <nav className="p-10 max-md:p-4 sm:px-6 md:px-8">
+            <ul className="space-y-2 max-md:space-y-1">
               <li>
                 <a
                   href="#introduction"
-                  className="text-xl font-medium active:font-bold"
+                  className="text-xl font-medium active:font-bold max-md:text-base"
                 >
                   Introduction
                 </a>
               </li>
               <li>
-                <a href="#getting-started" className="text-sm active:font-bold">
+                <a
+                  href="#getting-started"
+                  className="text-sm active:font-bold max-md:text-sm"
+                >
                   Getting Started
                 </a>
               </li>
               <li>
                 <a
                   href="#starting-your-project"
-                  className="text-sm active:font-bold"
+                  className="text-sm active:font-bold max-md:text-sm"
                 >
                   Starting your Project
                 </a>
@@ -95,15 +125,15 @@ const Guide = () => {
               <li>
                 <a
                   href="#using-preferences"
-                  className="text-sm active:font-bold"
+                  className="text-sm active:font-bold max-md:text-sm"
                 >
                   Using Preferences
                 </a>
               </li>
-              <li className="mb-4">
+              <li className="mb-4 max-md:mb-2">
                 <a
                   href="#generating-documentation"
-                  className="text-sm active:font-bold"
+                  className="text-sm active:font-bold max-md:text-sm"
                 >
                   Generating Documentation
                 </a>
@@ -111,7 +141,7 @@ const Guide = () => {
               <li>
                 <a
                   href="#preferences"
-                  className="text-xl font-medium active:font-bold"
+                  className="text-xl font-medium active:font-bold max-md:text-base"
                 >
                   Preferences
                 </a>
@@ -119,7 +149,7 @@ const Guide = () => {
               <li>
                 <a
                   href="#file-preferences"
-                  className="text-sm active:font-bold"
+                  className="text-sm active:font-bold max-md:text-sm"
                 >
                   File Preferences
                 </a>
@@ -127,7 +157,7 @@ const Guide = () => {
               <li>
                 <a
                   href="#function-class-preferences"
-                  className="text-sm active:font-bold"
+                  className="text-sm active:font-bold max-md:text-sm"
                 >
                   Function/Class Preferences
                 </a>
@@ -135,7 +165,7 @@ const Guide = () => {
               <li>
                 <a
                   href="#documentation-preferences"
-                  className="text-sm active:font-bold"
+                  className="text-sm active:font-bold max-md:text-sm"
                 >
                   Documentation Preferences
                 </a>
@@ -143,7 +173,7 @@ const Guide = () => {
               <li>
                 <a
                   href="#faqs"
-                  className="text-xl font-medium active:font-bold"
+                  className="text-xl font-medium active:font-bold max-md:text-base"
                 >
                   FAQs
                 </a>
@@ -151,7 +181,7 @@ const Guide = () => {
             </ul>
           </nav>
         </section>
-        <section className="w-5/6 p-10 h-screen overflow-y-scroll">
+        <section className="w-5/6 p-10 h-screen overflow-y-scroll max-md:w-full max-md:p-6 max-md:h-auto sm:px-10 md:px-12 guide-content relative">
           <article id="#introduction">
             <div>
               <h1 className="text-4xl font-bold mb-4 border-b-2 border-gray-300 py-5">
@@ -510,6 +540,16 @@ const Guide = () => {
               </p>
             </div>
           </article>
+          {/* Scroll to top button - visible only on sm/md screens when scrolled */}
+          {showScrollButton && (
+            <button
+              onClick={scrollToTop}
+              className="hidden sm:flex md:flex fixed bottom-8 right-6 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-all z-50 items-center justify-center"
+              aria-label="Scroll to top"
+            >
+              <FaArrowUp className="text-lg" />
+            </button>
+          )}
         </section>
       </main>
     </>
