@@ -44,6 +44,22 @@ def _strip_param_asterisks(text: str) -> str:
     return s
 
 
+def _strip_backticks_and_asterisks_plain(text: str) -> str:
+    """HTML/PDF-safe cleanup: remove stray backticks (including orphan fences)
+    and decorative asterisks, but keep parentheses and convert leading '*' bullets to '-'.
+    """
+    s = text
+    # Drop any orphan code fence lines like ``` or ```python
+    s = re.sub(r"(?m)^\s*```.*$", "", s)
+    # Remove inline backticks whether paired or lone by just removing the character
+    s = s.replace("`", "")
+    # Convert star bullets at line start to dash bullets for readability
+    s = re.sub(r"(?m)^(\s*)\*\s+", r"\1- ", s)
+    # Remove remaining decorative asterisks (italics markers), keep parentheses intact
+    s = s.replace("*", "")
+    return s
+
+
 def strip_examples_sections(text: str) -> str:
     if not text:
         return ""
@@ -128,9 +144,11 @@ def clean_for_html(text: str) -> str:
     s = _md_heading_re.sub("", s)
     # Keep bullets for readability in <pre>
     s = re.sub(r"\n{3,}", "\n\n", s)
-    s = re.sub(r"[ \t]+\n", "\n", s)
+    s = re.sub(r"[ \t]+\n", "\n")
     # Remove stray asterisks around parameter names
     s = _strip_param_asterisks(s)
+    # Additionally remove any remaining backticks and decorative asterisks
+    s = _strip_backticks_and_asterisks_plain(s)
     return s.strip()
 
 # ---------- pdf-specific ----------
@@ -149,6 +167,8 @@ def clean_for_pdf(text: str) -> str:
     s = re.sub(r"[ \t]+\n", "\n")
     # Remove stray asterisks around parameter names
     s = _strip_param_asterisks(s)
+    # Additionally remove any remaining backticks and decorative asterisks
+    s = _strip_backticks_and_asterisks_plain(s)
     return s.strip()
 
 # Back-compat wrappers used in other modules (if any)
