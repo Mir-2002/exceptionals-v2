@@ -29,6 +29,21 @@ def _find_section_bounds(text: str, start_idx: int) -> Tuple[int, int]:
     return start_idx, end
 
 
+def _strip_param_asterisks(text: str) -> str:
+    """Remove stray asterisks around parameter names like '* name:' or '*name*:'
+    without touching italics such as '*optional*' (no trailing colon) or any parentheses.
+    Applied across all output formats.
+    """
+    s = text
+    # 1) Convert bullets like '* name:' into '- name:' (Markdown-friendly), only when a param name is followed by ':'
+    s = re.sub(r"(?m)^(\s*)\*\s*([A-Za-z_][\w ]*?):", r"\1- \2:", s)
+    # 2) Unwrap asterisks around parameter names before a colon: '*name*:' -> 'name:'
+    s = re.sub(r"(?m)(^|\s)\*([A-Za-z_][\w ]*?)\*\s*:", r"\1\2:", s)
+    # 3) Remove a single leading asterisk before a param name (not already handled by step 1): '*NAME:' -> 'NAME:'
+    s = re.sub(r"(?m)(^|\s)\*([A-Za-z_][\w ]*?):", r"\1\2:", s)
+    return s
+
+
 def strip_examples_sections(text: str) -> str:
     if not text:
         return ""
@@ -96,6 +111,8 @@ def clean_for_markdown(text: str) -> str:
     s = re.sub(r"\n{3,}", "\n\n", s)
     s = re.sub(r"[ \t]+\n", "\n", s)
     s = reformat_args_for_markdown(s)
+    # Remove stray asterisks around parameter names
+    s = _strip_param_asterisks(s)
     return s.strip()
 
 # ---------- html-specific ----------
@@ -112,6 +129,8 @@ def clean_for_html(text: str) -> str:
     # Keep bullets for readability in <pre>
     s = re.sub(r"\n{3,}", "\n\n", s)
     s = re.sub(r"[ \t]+\n", "\n", s)
+    # Remove stray asterisks around parameter names
+    s = _strip_param_asterisks(s)
     return s.strip()
 
 # ---------- pdf-specific ----------
@@ -127,7 +146,9 @@ def clean_for_pdf(text: str) -> str:
     # Normalize spacing to avoid lines sticking to code blocks
     s = s.replace("\r\n", "\n").replace("\r", "\n")
     s = re.sub(r"\n{3,}", "\n\n", s)
-    s = re.sub(r"[ \t]+\n", "\n", s)
+    s = re.sub(r"[ \t]+\n", "\n")
+    # Remove stray asterisks around parameter names
+    s = _strip_param_asterisks(s)
     return s.strip()
 
 # Back-compat wrappers used in other modules (if any)
