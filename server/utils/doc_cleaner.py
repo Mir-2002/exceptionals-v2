@@ -144,7 +144,7 @@ def clean_for_html(text: str) -> str:
     s = _md_heading_re.sub("", s)
     # Keep bullets for readability in <pre>
     s = re.sub(r"\n{3,}", "\n\n", s)
-    s = re.sub(r"[ \t]+\n", "\n")
+    s = re.sub(r"[ \t]+\n", "\n", s)  # added missing string argument
     # Remove stray asterisks around parameter names
     s = _strip_param_asterisks(s)
     # Additionally remove any remaining backticks and decorative asterisks
@@ -164,7 +164,7 @@ def clean_for_pdf(text: str) -> str:
     # Normalize spacing to avoid lines sticking to code blocks
     s = s.replace("\r\n", "\n").replace("\r", "\n")
     s = re.sub(r"\n{3,}", "\n\n", s)
-    s = re.sub(r"[ \t]+\n", "\n")
+    s = re.sub(r"[ \t]+\n", "\n", s)  # added missing string argument
     # Remove stray asterisks around parameter names
     s = _strip_param_asterisks(s)
     # Additionally remove any remaining backticks and decorative asterisks
