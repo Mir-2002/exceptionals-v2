@@ -59,6 +59,8 @@ async def create_project(project: ProjectCreate, db, current_user):
         raise HTTPException(status_code=500, detail=f"An error occurred while creating the project: {str(e)}")
     
 async def get_project_by_id(project_id: str, db):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
     project_id = ObjectId(project_id)
     try: 
         project_data = await db.projects.find_one({"_id": project_id})
@@ -98,6 +100,8 @@ async def get_user_projects(user_id: str, db):
         )
     
 async def update_project(project_id: str, project: ProjectUpdate, db):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
     project_id = ObjectId(project_id)
     existing_project = await db.projects.find_one({"_id": project_id})
     if not existing_project:
@@ -133,6 +137,8 @@ async def update_project(project_id: str, project: ProjectUpdate, db):
         )
     
 async def delete_project(project_id: str, db):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
     project_oid = ObjectId(project_id)
     existing_project = await db.projects.find_one({"_id": project_oid})
     if not existing_project:

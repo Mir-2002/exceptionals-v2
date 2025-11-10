@@ -1,25 +1,25 @@
 from typing import Optional, Literal
 from bson import ObjectId
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, EmailStr
 
 from utils.custom_type import PyObjectId
 
 
 class UserBase(BaseModel):
-    username: str
-    email: str
+    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=8)
 
 class UserLogin(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=8)
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
-    email: Optional[str] = None
-    password: Optional[str] = None
+    username: Optional[str] = Field(default=None, min_length=3, max_length=50)
+    email: Optional[EmailStr] = None
+    password: Optional[str] = Field(default=None, min_length=8)
 
 class UserInDB(UserBase):
     id: Optional[PyObjectId] =  Field(default_factory=PyObjectId, alias="_id")

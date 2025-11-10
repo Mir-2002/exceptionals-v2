@@ -28,6 +28,8 @@ async def create_user(user: UserCreate, db=Depends(get_db)):
         )
     
 async def get_user_by_id(user_id: str, db=Depends(get_db)):
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID format.")
     user_id = ObjectId(user_id)
     try: 
         user_data = await db.users.find_one({"_id": user_id})
@@ -44,6 +46,8 @@ async def get_user_by_id(user_id: str, db=Depends(get_db)):
         )
 
 async def update_user(user_id: str, user: UserUpdate, db=Depends(get_db)):
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID format.")
     user_id = ObjectId(user_id)
     existing_user = await db.users.find_one({"_id": user_id})
     if not existing_user:
@@ -80,6 +84,8 @@ async def update_user(user_id: str, user: UserUpdate, db=Depends(get_db)):
         )
     
 async def delete_user(user_id: str, db=Depends(get_db)):
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID format.")
     user_id = ObjectId(user_id)
     try:
         result = await db.users.delete_one({"_id": user_id})

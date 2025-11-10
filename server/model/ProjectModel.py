@@ -21,13 +21,13 @@ class ProjectBase(BaseModel):
     status: ProjectStatus = ProjectStatus.EMPTY
 
 class ProjectCreate(BaseModel):
-    name: str
-    description: str
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str = Field("", max_length=500)
     tags: Optional[List[str]] = []
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="Updated name of the project")
-    description: Optional[str] = Field(None, description="Updated description of the project")
+    name: Optional[str] = Field(None, description="Updated name of the project", min_length=1, max_length=100)
+    description: Optional[str] = Field(None, description="Updated description of the project", max_length=500)
     status: Optional[ProjectStatus] = Field(None, description="Updated status of the project")
 
 class ProjectInDB(ProjectBase):

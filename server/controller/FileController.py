@@ -13,6 +13,13 @@ MAX_FILES_PER_UPLOAD = 100
 MAX_ITEMS_PER_UPLOAD = 300  # functions + classes + methods
 
 async def upload_file(project_id: str, file: UploadFile = File(...), db=Depends(get_db)):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+    
+    project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
     try:
         content = (await file.read()).decode("utf-8")
         parsed = extract_functions_classes_from_content(content)
@@ -52,6 +59,13 @@ async def upload_project_files(project_id: str, files: list[UploadFile], db=Depe
     """
     Upload multiple individual Python files to a project.
     """
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+
+    project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
     try:
         # Enforce file count limit
         py_files = [f for f in files if f.filename.endswith('.py')]
@@ -109,6 +123,13 @@ async def upload_project_files(project_id: str, files: list[UploadFile], db=Depe
         )
     
 async def upload_project_zip(project_id: str, zip_file: UploadFile = File(...), db=Depends(get_db)):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+
+    project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+        
     try:
         zip_bytes = await zip_file.read()
         extracted_files = extract_py_files_from_zip(zip_bytes)
@@ -153,6 +174,11 @@ async def upload_project_zip(project_id: str, zip_file: UploadFile = File(...), 
         )
     
 async def get_file(project_id: str, file_id: str, db=Depends(get_db)):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+    if not ObjectId.is_valid(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file ID format.")
+
     file_id = ObjectId(file_id)
     file_data = await db.files.find_one({"_id": file_id, "project_id": project_id})
     if not file_data:
@@ -163,6 +189,9 @@ async def get_project_file_tree(project_id: str, db=Depends(get_db)):
     """
     Returns a nested directory tree of all files in a project.
     """
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+
     files = await db.files.find({"project_id": project_id}).to_list(length=None)
     if not files:
         # Return empty tree instead of 404 for better UX
@@ -190,6 +219,9 @@ async def get_file_by_project(project_id: str, db=Depends(get_db)):
     """
     Retrieves all files associated with a project.
     """
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+
     files = await db.files.find({"project_id": project_id}).to_list(length=None)
     
     if not files:
@@ -201,6 +233,11 @@ async def delete_file(project_id: str, file_id: str, db=Depends(get_db)):
     """
     Deletes a file by its ID.
     """
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+    if not ObjectId.is_valid(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file ID format.")
+
     file_id = ObjectId(file_id)
     result = await db.files.delete_one({"_id": file_id, "project_id": project_id})    
     if result.deleted_count == 0:
@@ -221,6 +258,9 @@ async def delete_project_files(project_id: str, db=Depends(get_db)):
     """
     Deletes all files associated with a project.
     """
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+
     result = await db.files.delete_many({"project_id": project_id})    
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="No files found for this project")

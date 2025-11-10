@@ -51,11 +51,15 @@ async def get_current_user(db=Depends(get_db), token: str = Depends(oauth2_schem
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials"
     )
+    if not token:
+        raise credentials_exception
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         is_admin: bool = payload.get("is_admin", False)
         if user_id is None:
+            raise credentials_exception
+        if not ObjectId.is_valid(user_id):
             raise credentials_exception
         token_data = TokenData(username=user_id, is_admin=is_admin)
         user = await db.users.find_one({"_id": ObjectId(user_id)})

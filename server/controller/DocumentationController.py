@@ -85,6 +85,9 @@ def apply_preferences_filter(items: List[DocstringItem], preferences: dict) -> t
     return filtered, sorted(excluded_files), sorted(included_files)
 
 async def get_project_preferences(db, project_id: str) -> dict:
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+    
     prefs = await db.preferences.find_one({"project_id": project_id})
     if not prefs:
         prefs = await db.project_preferences.find_one({"project_id": project_id})
@@ -106,6 +109,13 @@ async def plan_documentation_generation(project_id: str, db) -> DocumentationPla
     - included_files/excluded_files from directory_exclusion over ALL files.
     - total_items from item-level filtering on included files.
     """
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+
+    project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
     prefs = await get_project_preferences(db, project_id)
 
     files = await db.files.find({"project_id": project_id}).to_list(length=None)
@@ -196,6 +206,9 @@ def _make_prompt_for_item(it: DocstringItem) -> str:
 Docstring:"""
 
 async def generate_documentation_with_hf(project_id: str, db, batch_size: int = 4, parameters: dict = None, created_by: Optional[dict] = None) -> DocumentationGenerationResponse:
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID format.")
+
     start_time = time.time()
 
     plan = await plan_documentation_generation(project_id, db)
