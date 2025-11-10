@@ -1,4 +1,5 @@
 from fastapi import Depends, HTTPException
+from fastapi.responses import JSONResponse
 from model.PreferencesModel import Preferences, UpdatePreferences, PreferencesResponse
 from utils.db import get_db
 from utils.timestamp_helper import update_project_timestamp
@@ -58,4 +59,4 @@ async def delete_preferences(project_id: str, db=Depends(get_db)):
     result = await db.preferences.delete_one({"project_id": project_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Preferences not found")
-    return {"detail": "Preferences deleted"}
+    return JSONResponse(content={"detail": "Preferences deleted"})

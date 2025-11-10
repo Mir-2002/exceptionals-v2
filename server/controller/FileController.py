@@ -106,14 +106,9 @@ async def upload_project_files(project_id: str, files: list[UploadFile], db=Depe
                 {"$set": {"status": new_status, "updated_at": datetime.now()}}
             )
         except Exception as e:
-            print(f"Warning: Could not update project status for {project_id} after multiple file upload. Error: {e}")
+            print(f"Warning: Could not update project status for {project_id}. Error: {e}")
         
-        return {
-            "detail": "Files uploaded successfully", 
-            "files_processed": len(uploaded_files),
-            "uploaded_files": uploaded_files
-        }
-        
+        return uploaded_files
     except HTTPException:
         raise
     except Exception as e:
@@ -185,7 +180,7 @@ async def get_file(project_id: str, file_id: str, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(**file_data)
 
-async def get_project_file_tree(project_id: str, db=Depends(get_db)):
+async def get_file_tree(project_id: str, db=Depends(get_db)):
     """
     Returns a nested directory tree of all files in a project.
     """
@@ -215,7 +210,7 @@ async def get_project_file_tree(project_id: str, db=Depends(get_db)):
         }
     )
 
-async def get_file_by_project(project_id: str, db=Depends(get_db)):
+async def get_files_in_project(project_id: str, db=Depends(get_db)):
     """
     Retrieves all files associated with a project.
     """
@@ -238,11 +233,13 @@ async def delete_file(project_id: str, file_id: str, db=Depends(get_db)):
     if not ObjectId.is_valid(file_id):
         raise HTTPException(status_code=400, detail="Invalid file ID format.")
 
-    file_id = ObjectId(file_id)
-    result = await db.files.delete_one({"_id": file_id, "project_id": project_id})    
+    file_id_obj = ObjectId(file_id)
+    
+    result = await db.files.delete_one({"_id": file_id_obj, "project_id": project_id})
+    
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="File not found")
-    # Recalculate project status and update timestamp
+
     try:
         all_project_files = await db.files.find({"project_id": project_id}).to_list(length=None)
         new_status = calculate_project_status(all_project_files)
@@ -251,8 +248,9 @@ async def delete_file(project_id: str, file_id: str, db=Depends(get_db)):
             {"$set": {"status": new_status, "updated_at": datetime.now()}}
         )
     except Exception as e:
-        print(f"Warning: Could not update project status after file deletion for {project_id}. Error: {e}")
-    return {"detail": "File deleted successfully"}
+        print(f"Warning: Could not update project status for {project_id} after file deletion. Error: {e}")
+
+    return JSONResponse(content={"message": "File deleted successfully"})
 
 async def delete_project_files(project_id: str, db=Depends(get_db)):
     """

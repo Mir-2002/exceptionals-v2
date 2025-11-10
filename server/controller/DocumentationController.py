@@ -14,9 +14,16 @@ import httpx
 def normalize_path(p: Optional[str]) -> str:
     # Remove leading './', '/', and 'root/' for consistency
     p = (p or "").replace("\\", "/")
+    # Strip leading './' repeatedly
+    while p.startswith("./"):
+        p = p[2:]
+    # Strip a single leading '/'
+    if p.startswith("/"):
+        p = p[1:]
+    # After trimming, drop leading 'root/' if present
     if p.startswith("root/"):
         p = p[len("root/") :]
-    return p.lstrip("./").lstrip("/")
+    return p
 
 def is_file_excluded(file_path: str, exclude_files: List[str], exclude_dirs: List[str]) -> bool:
     npath = normalize_path(file_path)

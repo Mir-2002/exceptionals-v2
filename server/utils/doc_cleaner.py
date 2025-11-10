@@ -97,22 +97,23 @@ def reformat_args_for_markdown(text: str) -> str:
     body = s[start + len(hdr):end].strip()
     if not body:
         return s
-    if "\n- " in body or re.search(r"^\s*[-*+]\s+", body, re.MULTILINE):
-        return s
+    # Always format each param line with a dash
     parts = []
-    pattern = re.compile(r"([A-Za-z_][\w]*)\s*\(([^)]*)\)\s*:\s*")
-    for m in pattern.finditer(body):
-        next_m = pattern.search(body, m.end())
-        chunk_end = next_m.start() if next_m else len(body)
-        desc = body[m.end():chunk_end].strip()
-        parts.append(f"- {m.group(1)} ({m.group(2)}): {desc}")
-    if not parts:
-        pattern2 = re.compile(r"([A-Za-z_][\w]*)\s*:\s*")
-        for m in pattern2.finditer(body):
-            next_m = pattern2.search(body, m.end())
-            chunk_end = next_m.start() if next_m else len(body)
-            desc = body[m.end():chunk_end].strip()
-            parts.append(f"- {m.group(1)}: {desc}")
+    # Match param lines with or without type
+    pattern = re.compile(r"([A-Za-z_][\w]*)\s*(?:\(([^)]*)\))?\s*:\s*(.*)")
+    for line in body.splitlines():
+        m = pattern.match(line.strip())
+        if m:
+            name = m.group(1)
+            typ = m.group(2)
+            desc = m.group(3)
+            if typ:
+                parts.append(f"- {name} ({typ}): {desc}")
+            else:
+                parts.append(f"- {name}: {desc}")
+        else:
+            if line.strip():
+                parts.append(f"- {line.strip()}")
     if not parts:
         return s
     new_section = hdr + "\n" + "\n".join(parts) + "\n"
