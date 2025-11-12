@@ -19,14 +19,36 @@ const Register = () => {
       return;
     }
     try {
-      await register(values.Username, values.email, values.password);
+      await register(values.username, values.email, values.password);
       showSuccess("Registration successful! Please log in.");
       navigate("/login");
     } catch (err) {
-      const apiDetail =
-        err?.response?.data?.detail || err?.response?.data?.message;
-      const errorMessage =
-        apiDetail || err?.message || "Registration failed. Please try again.";
+      let errorMessage = "Registration failed. Please try again.";
+      const data = err?.response?.data;
+      if (data?.detail) {
+        if (typeof data.detail === "string") {
+          errorMessage = data.detail;
+        } else if (Array.isArray(data.detail)) {
+          errorMessage = data.detail
+            .map(
+              (d) =>
+                d?.msg ||
+                d?.detail ||
+                (typeof d === "string" ? d : "Validation error")
+            )
+            .join("; ");
+        } else if (typeof data.detail === "object") {
+          errorMessage =
+            data.detail?.message ||
+            data.detail?.msg ||
+            JSON.stringify(data.detail);
+        }
+      } else if (typeof data?.message === "string") {
+        errorMessage = data.message;
+      } else if (typeof err?.message === "string") {
+        errorMessage = err.message;
+      }
+      errorMessage = String(errorMessage);
       setError(errorMessage);
       showError(errorMessage);
     }
@@ -42,11 +64,12 @@ const Register = () => {
         <Form
           fields={[
             {
-              name: "Username",
+              name: "username",
               label: "Username",
               type: "text",
               required: true,
               placeholder: "Enter your username",
+              inputProps: { minLength: 3, autoComplete: "username" },
             },
             {
               name: "email",
@@ -54,6 +77,7 @@ const Register = () => {
               type: "email",
               required: true,
               placeholder: "Enter your email",
+              inputProps: { autoComplete: "email" },
             },
             {
               name: "password",
@@ -61,6 +85,7 @@ const Register = () => {
               type: "password",
               required: true,
               placeholder: "Enter your password",
+              inputProps: { minLength: 8, autoComplete: "new-password" },
             },
             {
               name: "confirmPassword",
@@ -68,10 +93,11 @@ const Register = () => {
               type: "password",
               required: true,
               placeholder: "Confirm your password",
+              inputProps: { minLength: 8, autoComplete: "new-password" },
             },
           ]}
           initialValues={{
-            Username: "",
+            username: "",
             email: "",
             password: "",
             confirmPassword: "",

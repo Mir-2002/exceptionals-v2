@@ -35,9 +35,33 @@ const Login = () => {
       if (me?.is_admin) navigate("/admin");
       else navigate("/dashboard");
     } catch (err) {
-      const apiDetail =
-        err?.response?.data?.detail || err?.response?.data?.message;
-      const errorMessage = apiDetail || "Login failed. Please try again.";
+      // Robust normalization for FastAPI 422 validation errors and others
+      let errorMessage = "Login failed. Please try again.";
+      const data = err?.response?.data;
+      if (data?.detail) {
+        if (typeof data.detail === "string") {
+          errorMessage = data.detail;
+        } else if (Array.isArray(data.detail)) {
+          errorMessage = data.detail
+            .map(
+              (d) =>
+                d?.msg ||
+                d?.detail ||
+                (typeof d === "string" ? d : "Validation error")
+            )
+            .join("; ");
+        } else if (typeof data.detail === "object") {
+          errorMessage =
+            data.detail?.message ||
+            data.detail?.msg ||
+            JSON.stringify(data.detail);
+        }
+      } else if (typeof data?.message === "string") {
+        errorMessage = data.message;
+      } else if (typeof err?.message === "string") {
+        errorMessage = err.message;
+      }
+      errorMessage = String(errorMessage);
       setError(errorMessage);
       showError(errorMessage);
     }
@@ -70,6 +94,7 @@ const Login = () => {
               type: "text",
               required: true,
               placeholder: "Enter your username",
+              inputProps: { minLength: 3, autoComplete: "username" },
             },
             {
               name: "password",
@@ -77,6 +102,7 @@ const Login = () => {
               type: "password",
               required: true,
               placeholder: "Enter your password",
+              inputProps: { autoComplete: "current-password" },
             },
           ]}
           initialValues={{ username: "", password: "" }}
