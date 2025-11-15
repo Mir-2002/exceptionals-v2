@@ -9,13 +9,24 @@ const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [errorList, setErrorList] = useState([]);
 
   const handleRegister = async (values) => {
     setError("");
+    setErrorList([]);
+    const errors = [];
+    if (values.username.length < 3) {
+      errors.push("Username should have at least 3 characters.");
+    }
+    if (values.password.length < 8) {
+      errors.push("Password should have at least 8 characters.");
+    }
     if (values.password !== values.confirmPassword) {
-      const msg = "Passwords do not match.";
-      setError(msg);
-      showError(msg);
+      errors.push("Passwords do not match.");
+    }
+    if (errors.length > 0) {
+      setErrorList(errors);
+      errors.forEach((err) => showError(err));
       return;
     }
     try {
@@ -25,32 +36,33 @@ const Register = () => {
     } catch (err) {
       let errorMessage = "Registration failed. Please try again.";
       const data = err?.response?.data;
+      let errorsArr = [];
       if (data?.detail) {
         if (typeof data.detail === "string") {
-          errorMessage = data.detail;
+          errorsArr = [data.detail];
         } else if (Array.isArray(data.detail)) {
-          errorMessage = data.detail
-            .map(
-              (d) =>
-                d?.msg ||
-                d?.detail ||
-                (typeof d === "string" ? d : "Validation error")
-            )
-            .join("; ");
+          errorsArr = data.detail.map(
+            (d) =>
+              d?.msg ||
+              d?.detail ||
+              (typeof d === "string" ? d : "Validation error")
+          );
         } else if (typeof data.detail === "object") {
-          errorMessage =
+          errorsArr = [
             data.detail?.message ||
-            data.detail?.msg ||
-            JSON.stringify(data.detail);
+              data.detail?.msg ||
+              JSON.stringify(data.detail),
+          ];
         }
       } else if (typeof data?.message === "string") {
-        errorMessage = data.message;
+        errorsArr = [data.message];
       } else if (typeof err?.message === "string") {
-        errorMessage = err.message;
+        errorsArr = [err.message];
+      } else {
+        errorsArr = [errorMessage];
       }
-      errorMessage = String(errorMessage);
-      setError(errorMessage);
-      showError(errorMessage);
+      setErrorList(errorsArr);
+      errorsArr.forEach((err) => showError(err));
     }
   };
 
@@ -105,7 +117,15 @@ const Register = () => {
           onSubmit={handleRegister}
           buttonText="Register"
         />
-        {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+        {errorList.length > 0 && (
+          <div className="mt-2">
+            {errorList.map((err, idx) => (
+              <div key={idx} className="text-red-600 text-sm mb-1">
+                {err}
+              </div>
+            ))}
+          </div>
+        )}
         <p className="mt-4 text-sm text-gray-600 text-center">
           Already have an account?{" "}
           <a href="/login" className="text-blue-600 hover:underline">
