@@ -26,14 +26,19 @@ def calculate_project_status(files):
     return "in_progress"
 
 async def create_project(project: ProjectCreate, db, current_user):
-    existing_project = await db.projects.find_one({"name": project.name})
+    # Enforce uniqueness only within the current user's projects
+    user_id_str = str(current_user.id)
+    existing_project = await db.projects.find_one({
+        "name": project.name,
+        "user_id": user_id_str
+    })
     if existing_project:
-        raise HTTPException(status_code=400, detail="A project with that name already exists.")
+        raise HTTPException(status_code=400, detail="You already have a project with that name.")
     try:
         project_data = ProjectInDB(
             name=project.name,
             description=project.description,
-            user_id=str(current_user.id),
+            user_id=user_id_str,
             tags=project.tags or [],
         )
         result = await db.projects.insert_one(project_data.model_dump(by_alias=True))
@@ -113,11 +118,24 @@ async def update_project(project_id: str, project: ProjectUpdate, db):
     try:
         update_data = project.model_dump(exclude_unset=True)
         if "name" in update_data:
-            name_exists = await db.projects.find_one({"name": update_data["name"], "_id": {"$ne": project_id}})
+            owner_raw = existing_project.get("user_id")
+            # Normalize owner id forms
+            owner_id_candidates = [owner_raw]
+            if isinstance(owner_raw, ObjectId):
+                owner_id_candidates.append(str(owner_raw))
+            else:
+                # owner_raw is str; include ObjectId form if valid
+                if ObjectId.is_valid(owner_raw):
+                    owner_id_candidates.append(ObjectId(owner_raw))
+            name_exists = await db.projects.find_one({
+                "name": update_data["name"],
+                "user_id": {"$in": owner_id_candidates},
+                "_id": {"$ne": project_id}
+            })
             if name_exists:
                 raise HTTPException(
                     status_code=400,
-                    detail="A project with that name already exists."
+                    detail="This user already has a project with that name."
                 )
         # Always update the timestamp when updating a project
         update_data["updated_at"] = datetime.now()
