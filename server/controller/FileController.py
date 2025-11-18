@@ -10,7 +10,7 @@ from utils.timestamp_helper import update_project_timestamp
 from utils.parser import extract_functions_classes_from_content, extract_py_files_from_zip
 
 MAX_FILES_PER_UPLOAD = 100
-MAX_ITEMS_PER_UPLOAD = 300  # functions + classes + methods
+MAX_ITEMS_PER_UPLOAD = 500  # functions + classes + methods
 
 async def upload_file(project_id: str, file: UploadFile = File(...), db=Depends(get_db)):
     if not ObjectId.is_valid(project_id):
